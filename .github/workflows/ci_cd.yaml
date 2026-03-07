@@ -20,30 +20,30 @@ jobs:
       - name: Install LLVM 21
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget lsb-release software-properties-common gnupg ca-certificates
+          sudo apt-get install -y wget lsb-release software-properties-common gnupg ca-certificates curl
           
-          # Download with retry and explicit output name
-          wget -O llvm.sh https://apt.llvm.org
+          # Use curl with -L to follow redirects and -o to specify the output file
+          curl -L https://apt.llvm.org/llvm.sh -o llvm.sh
           
-          if [ -f "llvm.sh" ]; then
+          # Check if the file is a valid shell script (contains #!/bin/bash)
+          if grep -q "#!/bin/bash" llvm.sh; then
             chmod +x llvm.sh
-            # 'all' ensures headers and libraries are included for linking
+            # Use 'all' for full headers/libraries needed by inkwell
             sudo ./llvm.sh 21 all
           else
-            echo "Error: llvm.sh download failed"
+            echo "Error: Downloaded file is not a valid script. Check if apt.llvm.org is up."
+            cat llvm.sh # Print content for debugging in logs
             exit 1
           fi
 
-          # Export variables so the 'cargo' steps can find LLVM
+          # Export variables for inkwell
           echo "LLVM_SYS_211_PREFIX=/usr/lib/llvm-21" >> $GITHUB_ENV
           echo "/usr/lib/llvm-21/bin" >> $GITHUB_PATH
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
-          # Custom key ensures cache clears if you change LLVM versions
           key: llvm-21
 
       - name: Run Tests
-        # The environment variables from above will be active here
         run: cargo test

@@ -7,4 +7,7 @@ edition = "2024"
 cranelift-module = { workspace = true }
 cranelift-object = { workspace = true }
 target-lexicon = { workspace = true }
+inkwell = { workspace = true }
+# Optional: only if it needs raw FFI
+# llvm-sys = { workspace = true }
 

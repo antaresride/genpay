@@ -9,7 +9,7 @@
 ## Technical Details
 - **Language:** Rust
 - **Build Systems:** Cargo
-- **Backend:** LLVM
+- **Backend:** LLVM and Cranelift
 - **Errors:** thiserror
 - **Error Reporting:** miette, colored
 - **Command Line Interface:** clap
@@ -23,4 +23,3 @@
 - `semantic` - Recursively checks the AST for type and principle matching.
 - `codegen` - Recursively compiles the AST.
 - `linker` -  Compiles the module to differents objects file and links it.
-

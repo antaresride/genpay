@@ -50,17 +50,9 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      # --- LLVM 21 Setup (Fixed) ---
+      # --- LLVM 21 Setup ---
       
-      - name: Install LLVM 21 (Ubuntu)
-        if: matrix.os == 'ubuntu-latest'
-        uses: KyleMayes/install-llvm-action@v2
-        with:
-          version: "21.0"
-          ubuntu-code-name: jammy
-
-      - name: Install LLVM 21 (macOS)
-        if: matrix.os == 'macos-15'
+      - name: Install LLVM 21
         uses: KyleMayes/install-llvm-action@v2
         with:
           version: "21.0"
@@ -70,38 +62,42 @@ jobs:
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
-          # Bumped cache key to avoid poisoned cache
-          key: ${{ matrix.target }}-llvm-21-v3
+          # Bumped cache key to avoid poisoned cache from failed builds
+          key: ${{ matrix.target }}-llvm-21-v4
 
       - name: Run Tests (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
-        env:
-          LLVM_SYS_211_PREFIX: ${{ env.LLVM_PATH }}
-          LIBCLANG_PATH: ${{ env.LLVM_PATH }}/lib
-        run: cargo test --workspace --target ${{ matrix.target }}
+        run: |
+          export LLVM_SYS_211_PREFIX="${{ env.LLVM_PATH }}"
+          export LIBCLANG_PATH="${{ env.LLVM_PATH }}/lib"
+          echo "LLVM_SYS_211_PREFIX=$LLVM_SYS_211_PREFIX"
+          echo "LIBCLANG_PATH=$LIBCLANG_PATH"
+          cargo test --workspace --target ${{ matrix.target }}
 
       - name: Run Tests (macOS)
         if: matrix.os == 'macos-15'
-        env:
-          LLVM_SYS_211_PREFIX: ${{ env.LLVM_PATH }}
-          LIBCLANG_PATH: ${{ env.LLVM_PATH }}/lib
-        run: cargo test --workspace --target ${{ matrix.target }}
+        run: |
+          export LLVM_SYS_211_PREFIX="${{ env.LLVM_PATH }}"
+          export LIBCLANG_PATH="${{ env.LLVM_PATH }}/lib"
+          echo "LLVM_SYS_211_PREFIX=$LLVM_SYS_211_PREFIX"
+          echo "LIBCLANG_PATH=$LIBCLANG_PATH"
+          cargo test --workspace --target ${{ matrix.target }}
 
       # --- Release Preparation (Only on Tags) ---
 
       - name: Build Release Binary (Ubuntu)
         if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'ubuntu-latest'
-        env:
-          LLVM_SYS_211_PREFIX: ${{ env.LLVM_PATH }}
-          LIBCLANG_PATH: ${{ env.LLVM_PATH }}/lib
-        run: cargo build --release --target ${{ matrix.target }} --bin genpay
+        run: |
+          export LLVM_SYS_211_PREFIX="${{ env.LLVM_PATH }}"
+          export LIBCLANG_PATH="${{ env.LLVM_PATH }}/lib"
+          cargo build --release --target ${{ matrix.target }} --bin genpay
 
       - name: Build Release Binary (macOS)
         if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'macos-15'
-        env:
-          LLVM_SYS_211_PREFIX: ${{ env.LLVM_PATH }}
-          LIBCLANG_PATH: ${{ env.LLVM_PATH }}/lib
-        run: cargo build --release --target ${{ matrix.target }} --bin genpay
+        run: |
+          export LLVM_SYS_211_PREFIX="${{ env.LLVM_PATH }}"
+          export LIBCLANG_PATH="${{ env.LLVM_PATH }}/lib"
+          cargo build --release --target ${{ matrix.target }} --bin genpay
 
       - name: Generate Checksum
         if: startsWith(github.ref, 'refs/tags/v')

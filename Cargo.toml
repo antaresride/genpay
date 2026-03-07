@@ -19,4 +19,11 @@ members = [
     "crates/codegen",
     "crates/linker",
 ]
+
+[workspace.dependencies]
+# By setting default-features to false here, you prevent 
+# bloating crates that only need a small part of Cranelift.
+cranelift-codegen = { version = "0.129.1", default-features = false }
+target-lexicon = { version = "0.13.5", default-features = false }
+
 resolver = "3"

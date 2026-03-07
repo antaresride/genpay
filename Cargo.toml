@@ -19,5 +19,4 @@ members = [
     "crates/codegen",
     "crates/linker",
 ]
-resolver = "2"
-
+resolver = "3"

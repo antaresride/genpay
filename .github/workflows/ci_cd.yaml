@@ -1,45 +1,115 @@
-name: CI
+name: CI & Release
 
 on:
   push:
     branches: [ "main" ]
+    tags: [ "v*" ]
   pull_request:
     branches: [ "main" ]
 
+permissions:
+  contents: write
+
 jobs:
-  test:
-    name: Test on Ubuntu
+  # 1. Quick check for syntax and formatting errors
+  lint:
+    name: Lint & Format
     runs-on: ubuntu-latest
-    env:
-      # Required for inkwell/llvm-sys to find the right LLVM version
-      LLVM_SYS_211_PREFIX: /usr/lib/llvm-21
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Check Formatting
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --workspace -- -D warnings
+
+  # 2. Main Test and Build Matrix
+  test-and-build:
+    name: ${{ matrix.artifact_name }}
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: genpay-linux
+          - os: macos-15
+            target: aarch64-apple-darwin
+            artifact_name: genpay-macos
+    runs-on: ${{ matrix.os }}
+    
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
-      - name: Install LLVM 21
+      # --- LLVM 21 Setup ---
+      - name: Install LLVM 21 (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          # Install dependencies required for linking LLVM
-          sudo apt-get install -y wget lsb-release software-properties-common gnupg ca-certificates curl libz-dev libedit-dev
-          
-          # Download and run the official LLVM installation script
+          sudo apt-get install -y wget lsb-release software-properties-common gnupg curl libz-dev libedit-dev
           curl -L https://apt.llvm.org/llvm.sh -o llvm.sh
           chmod +x llvm.sh
-          # 'all' ensures we get llvm-dev, clang, and lld for the linker crate
           sudo ./llvm.sh 21 all
-          
-          # Add LLVM binaries to the path so 'llvm-config' is discoverable
+          echo "LLVM_SYS_211_PREFIX=/usr/lib/llvm-21" >> $GITHUB_ENV
           echo "/usr/lib/llvm-21/bin" >> $GITHUB_PATH
 
+      - name: Install and Cache LLVM 21 (macOS)
+        if: matrix.os == 'macos-15'
+        uses: miniscruff/install-and-cache-homebrew-tools@v1.1.1
+        with:
+          formula: llvm@21
+          cache: true
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+
+      - name: Export macOS LLVM Paths
+        if: matrix.os == 'macos-15'
+        run: |
+          LLVM_PATH=$(brew --prefix llvm@21)
+          echo "LLVM_SYS_211_PREFIX=$LLVM_PATH" >> $GITHUB_ENV
+          echo "$LLVM_PATH/bin" >> $GITHUB_PATH
+
+      # --- Caching & Testing ---
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
-          # Include llvm-21 in the key so the cache invalidates if you upgrade versions
-          key: llvm-21
+          key: ${{ matrix.target }}-llvm-21
 
       - name: Run Tests
-        run: cargo test --workspace
+        run: cargo test --workspace --target ${{ matrix.target }}
+
+      # --- Release Preparation (Only on Tags) ---
+      - name: Build Release Binary
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: cargo build --release --target ${{ matrix.target }} --bin genpay
+
+      - name: Generate Checksum
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          cp target/${{ matrix.target }}/release/genpay ./${{ matrix.artifact_name }}
+          if command -v sha256sum >/dev/null; then
+            sha256sum ${{ matrix.artifact_name }} > ${{ matrix.artifact_name }}.sha256
+          else
+            shasum -a 256 ${{ matrix.artifact_name }} > ${{ matrix.artifact_name }}.sha256
+          fi
+
+      - name: Upload to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ matrix.artifact_name }}
+            ${{ matrix.artifact_name }}.sha256
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

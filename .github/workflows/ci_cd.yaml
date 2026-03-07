@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD
 
 on:
   push:
@@ -16,8 +16,23 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install LLVM 21
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget lsb-release software-properties-common gnupg
+          wget https://apt.llvm.org
+          chmod +x llvm.sh
+          sudo ./llvm.sh 21 all
+          # Set prefix and path so the inkwell build script finds LLVM 21
+          echo "LLVM_SYS_211_PREFIX=/usr/lib/llvm-21" >> $GITHUB_ENV
+          echo "/usr/lib/llvm-21/bin" >> $GITHUB_PATH
+
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
+        with:
+          # Adding the LLVM version to the cache key ensures a clean build if LLVM changes
+          key: llvm-21
 
       - name: Run Tests
         run: cargo test
+

@@ -17,13 +17,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Install LLVM 21
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: "21.0"
+      
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      
       - name: Check Formatting
         run: cargo fmt --all -- --check
+      
       - name: Clippy
-        run: cargo clippy --workspace -- -D warnings
+        run: |
+          export LLVM_SYS_211_PREFIX="${{ env.LLVM_PATH }}"
+          export LIBCLANG_PATH="${{ env.LLVM_PATH }}/lib"
+          cargo clippy --workspace -- -D warnings
 
   # 2. Main Test and Build Matrix
   test-and-build:

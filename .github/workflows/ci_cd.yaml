@@ -10,6 +10,9 @@ jobs:
   test:
     name: Test on Ubuntu
     runs-on: ubuntu-latest
+    env:
+      # Required for inkwell/llvm-sys to find the right LLVM version
+      LLVM_SYS_211_PREFIX: /usr/lib/llvm-21
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -20,30 +23,23 @@ jobs:
       - name: Install LLVM 21
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget lsb-release software-properties-common gnupg ca-certificates curl
+          # Install dependencies required for linking LLVM
+          sudo apt-get install -y wget lsb-release software-properties-common gnupg ca-certificates curl libz-dev libedit-dev
           
-          # Use curl with -L to follow redirects and -o to specify the output file
+          # Download and run the official LLVM installation script
           curl -L https://apt.llvm.org/llvm.sh -o llvm.sh
+          chmod +x llvm.sh
+          # 'all' ensures we get llvm-dev, clang, and lld for the linker crate
+          sudo ./llvm.sh 21 all
           
-          # Check if the file is a valid shell script (contains #!/bin/bash)
-          if grep -q "#!/bin/bash" llvm.sh; then
-            chmod +x llvm.sh
-            # Use 'all' for full headers/libraries needed by inkwell
-            sudo ./llvm.sh 21 all
-          else
-            echo "Error: Downloaded file is not a valid script. Check if apt.llvm.org is up."
-            cat llvm.sh # Print content for debugging in logs
-            exit 1
-          fi
-
-          # Export variables for inkwell
-          echo "LLVM_SYS_211_PREFIX=/usr/lib/llvm-21" >> $GITHUB_ENV
+          # Add LLVM binaries to the path so 'llvm-config' is discoverable
           echo "/usr/lib/llvm-21/bin" >> $GITHUB_PATH
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
+          # Include llvm-21 in the key so the cache invalidates if you upgrade versions
           key: llvm-21
 
       - name: Run Tests
-        run: cargo test
+        run: cargo test --workspace

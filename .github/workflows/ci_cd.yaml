@@ -11,6 +11,7 @@ permissions:
   contents: write
 
 jobs:
+  # 1. Quick check for syntax and formatting errors
   lint:
     name: Lint & Format
     runs-on: ubuntu-latest
@@ -24,6 +25,7 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace -- -D warnings
 
+  # 2. Main Test and Build Matrix
   test-and-build:
     name: ${{ matrix.artifact_name }}
     needs: lint
@@ -54,13 +56,16 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget lsb-release software-properties-common gnupg curl libz-dev libedit-dev
+          # Essential libraries for linking llvm-sys
+          sudo apt-get install -y wget lsb-release software-properties-common gnupg curl libz-dev libedit-dev libxml2-dev
+          
           curl -L https://apt.llvm.org/llvm.sh -o llvm.sh
           chmod +x llvm.sh
           sudo ./llvm.sh 21 all
-          # Set the explicit path for LLVM 21 on Ubuntu
+          
+          # Fix for llvm-sys: Ensure llvm-config is discoverable and variables are exported
+          sudo ln -sf /usr/lib/llvm-21/bin/llvm-config /usr/bin/llvm-config
           echo "LLVM_SYS_211_PREFIX=/usr/lib/llvm-21" >> $GITHUB_ENV
-          echo "LLVM_CONFIG_PATH=/usr/lib/llvm-21/bin/llvm-config" >> $GITHUB_ENV
           echo "/usr/lib/llvm-21/bin" >> $GITHUB_PATH
 
       - name: Install and Cache LLVM 21 (macOS)
@@ -72,22 +77,24 @@ jobs:
         env:
           HOMEBREW_NO_AUTO_UPDATE: 1
 
-      - name: Set macOS LLVM Env
+      - name: Export macOS LLVM Paths
         if: matrix.os == 'macos-15'
         run: |
           LLVM_PATH=$(brew --prefix llvm@21)
+          # Critical variables for llvm-sys on Darwin
           echo "LLVM_SYS_211_PREFIX=$LLVM_PATH" >> $GITHUB_ENV
-          echo "LLVM_CONFIG_PATH=$LLVM_PATH/bin/llvm-config" >> $GITHUB_ENV
           echo "$LLVM_PATH/bin" >> $GITHUB_PATH
 
-      # --- Caching & Build ---
+      # --- Caching & Testing ---
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
-          key: ${{ matrix.target }}-v1 # Incremented version key to force clean cache
+          # Use target-specific keys to prevent cache collisions
+          key: ${{ matrix.target }}-llvm-21-v2
 
       - name: Run Tests
+        # Setting prefix explicitly here ensures the environment is primed for the build script
         run: cargo test --workspace --target ${{ matrix.target }}
 
       # --- Release Preparation (Only on Tags) ---
@@ -100,7 +107,10 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         shell: bash
         run: |
+          # Copy to a clean filename in root for release upload
           cp target/${{ matrix.target }}/release/genpay ./${{ matrix.artifact_name }}
+          
+          # Standardize checksumming across OSs
           if command -v sha256sum >/dev/null; then
             sha256sum ${{ matrix.artifact_name }} > ${{ matrix.artifact_name }}.sha256
           else

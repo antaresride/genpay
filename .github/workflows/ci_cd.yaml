@@ -11,7 +11,6 @@ permissions:
   contents: write
 
 jobs:
-  # 1. Quick check for syntax and formatting errors
   lint:
     name: Lint & Format
     runs-on: ubuntu-latest
@@ -25,7 +24,6 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace -- -D warnings
 
-  # 2. Main Test and Build Matrix
   test-and-build:
     name: ${{ matrix.artifact_name }}
     needs: lint
@@ -36,9 +34,12 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             artifact_name: genpay-linux
+            llvm_path: /usr/lib/llvm-21
           - os: macos-15
             target: aarch64-apple-darwin
             artifact_name: genpay-macos
+            # Placeholder: will be updated dynamically via brew prefix
+            llvm_path: "" 
     runs-on: ${{ matrix.os }}
     
     steps:
@@ -51,12 +52,13 @@ jobs:
           targets: ${{ matrix.target }}
 
       # --- LLVM 21 Setup ---
+      
       - name: Install LLVM 21 (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y wget lsb-release software-properties-common gnupg curl libz-dev libedit-dev
-          curl -L https://apt.llvm.org/llvm.sh -o llvm.sh
+          curl -L https://apt.llvm.org -o llvm.sh
           chmod +x llvm.sh
           sudo ./llvm.sh 21 all
           echo "LLVM_SYS_211_PREFIX=/usr/lib/llvm-21" >> $GITHUB_ENV
@@ -71,7 +73,7 @@ jobs:
         env:
           HOMEBREW_NO_AUTO_UPDATE: 1
 
-      - name: Export macOS LLVM Paths
+      - name: Set macOS LLVM Paths
         if: matrix.os == 'macos-15'
         run: |
           LLVM_PATH=$(brew --prefix llvm@21)
@@ -79,15 +81,18 @@ jobs:
           echo "$LLVM_PATH/bin" >> $GITHUB_PATH
 
       # --- Caching & Testing ---
+
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
+          # Matrix target ensures caches don't collide between OSs
           key: ${{ matrix.target }}-llvm-21
 
       - name: Run Tests
         run: cargo test --workspace --target ${{ matrix.target }}
 
       # --- Release Preparation (Only on Tags) ---
+
       - name: Build Release Binary
         if: startsWith(github.ref, 'refs/tags/v')
         run: cargo build --release --target ${{ matrix.target }} --bin genpay
@@ -103,7 +108,7 @@ jobs:
             shasum -a 256 ${{ matrix.artifact_name }} > ${{ matrix.artifact_name }}.sha256
           fi
 
-      - name: Upload to GitHub Release
+      - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:

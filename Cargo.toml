@@ -1,0 +1,23 @@
+[package]
+name = "genpay"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# This links your local crates to your main client
+lexer = { path = "crates/lexer" }
+parser = { path = "crates/parser" }
+semantic = { path = "crates/semantic" }
+codegen = { path = "crates/codegen" }
+linker = { path = "crates/linker" }
+
+[workspace]
+members = [
+    "crates/lexer",
+    "crates/parser",
+    "crates/semantic",
+    "crates/codegen",
+    "crates/linker",
+]
+resolver = "2"
+

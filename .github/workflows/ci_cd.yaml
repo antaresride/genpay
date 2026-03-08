@@ -1,4 +1,4 @@
-name: CI/CD & Release
+name: CI & Release
 
 on:
     push:
@@ -13,15 +13,14 @@ permissions:
 jobs:
     lint:
         name: Lint & Format
-        runs-on: 
+        runs-on: ubuntu-24.04-arm
         env:
-            # Required for llvm-sys crate to find LLVM 21
             LLVM_SYS_211_PREFIX: /usr/lib/llvm-21
             LIBCLANG_PATH: /usr/lib/llvm-21/lib
         steps:
             - uses: actions/checkout@v4
 
-            - name: Install LLVM 21 (Ubuntu)
+            - name: Install LLVM 21 (Ubuntu ARM)
               run: |
                   sudo apt-get update
                   sudo apt-get install -y wget lsb-release software-properties-common gnupg curl libz-dev libedit-dev libxml2-dev
@@ -48,59 +47,43 @@ jobs:
             matrix:
                 include:
                     - os: ubuntu-24.04-arm
-                      target: aarch64-unknown-linux-gnu
                       platform: linux-aarch64
                     - os: macos-15
-                      target: aarch64-apple-darwin
                       platform: macos-aarch64
         runs-on: ${{ matrix.os }}
-
         steps:
-            - name: Checkout Code
-              uses: actions/checkout@v4
+            - uses: actions/checkout@v4
+            - uses: dtolnay/rust-toolchain@stable
 
-            - name: Install Rust
-              uses: dtolnay/rust-toolchain@stable
-              with:
-                  targets: ${{ matrix.target }}
-
-            - name: Install LLVM 21 (Ubuntu ARM)
+            - name: Setup LLVM (Ubuntu ARM)
               if: startsWith(matrix.os, 'ubuntu')
               run: |
                   sudo apt-get update
                   sudo apt-get install -y wget lsb-release software-properties-common gnupg curl libz-dev libedit-dev libxml2-dev
-                  curl -L https://apt.llvm.org/llvm.sh -o llvm.sh
-                  chmod +x llvm.sh
-                  sudo ./llvm.sh 21 all
-                  sudo ln -sf /usr/lib/llvm-21/bin/llvm-config /usr/bin/llvm-config
+                  curl -L https://apt.llvm.org/llvm.sh -o llvm.sh && chmod +x llvm.sh && sudo ./llvm.sh 21 all
                   echo "LLVM_SYS_211_PREFIX=/usr/lib/llvm-21" >> $GITHUB_ENV
                   echo "LIBCLANG_PATH=/usr/lib/llvm-21/lib" >> $GITHUB_ENV
 
-            - name: Install LLVM 21 (macOS)
+            - name: Setup LLVM (macOS)
               if: startsWith(matrix.os, 'macos')
               run: |
                   brew install llvm@21
                   echo "LLVM_SYS_211_PREFIX=$(brew --prefix llvm@21)" >> $GITHUB_ENV
                   echo "LIBCLANG_PATH=$(brew --prefix llvm@21)/lib" >> $GITHUB_ENV
-                  echo "$(brew --prefix llvm@21)/bin" >> $GITHUB_PATH
 
-            - name: Rust Cache
-              uses: Swatinem/rust-cache@v2
-              with:
-                  key: ${{ matrix.target }}-llvm-21-v5
+            - uses: Swatinem/rust-cache@v2
 
             - name: Run Tests
-              run: cargo test --workspace --target ${{ matrix.target }}
+              run: cargo test --workspace
 
             - name: Build Release Binary
               if: startsWith(github.ref, 'refs/tags/v')
-              run: cargo build --release --target ${{ matrix.target }} --bin genpay
+              run: cargo build --release --bin genpay
 
             - name: Prepare Release Assets
               if: startsWith(github.ref, 'refs/tags/v')
-              shell: bash
               run: |
-                  cp target/${{ matrix.target }}/release/genpay genpay-${{ matrix.platform }}
+                  cp target/release/genpay genpay-${{ matrix.platform }}
                   if command -v sha256sum >/dev/null; then
                     sha256sum genpay-${{ matrix.platform }} > genpay-${{ matrix.platform }}.sha256
                   else
@@ -120,46 +103,16 @@ jobs:
         name: Create Release
         needs: test-and-build
         if: startsWith(github.ref, 'refs/tags/v')
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-latest  # Can stay on x86_64, just downloads artifacts
         steps:
-            - name: Download All Artifacts
-              uses: actions/download-artifact@v4
+            - uses: actions/download-artifact@v4
               with:
                   path: ./artifacts
                   pattern: genpay-*
                   merge-multiple: true
-
-            - name: Create GitHub Release
-              uses: softprops/action-gh-release@v2
+            - uses: softprops/action-gh-release@v2
               with:
                   files: ./artifacts/*
-                  body: |
-                      ## Installation
-
-                      ### Linux (ARM64)
-
-                      ```bash
-                      cd ~/Downloads
-                      curl -LO "https://github.com/antaresride/genpay/releases/download/${{ github.ref_name }}/genpay-linux-aarch64"
-                      curl -LO "https://github.com/antaresride/genpay/releases/download/${{ github.ref_name }}/genpay-linux-aarch64.sha256"
-                      sha256sum -c genpay-linux-aarch64.sha256
-                      chmod +x genpay-linux-aarch64
-                      sudo mv genpay-linux-aarch64 /usr/local/bin/genpay
-                      genpay --help
-                      ```
-
-                      ### macOS (Apple Silicon)
-
-                      ```bash
-                      cd ~/Downloads
-                      curl -LO "https://github.com/antaresride/genpay/releases/download/${{ github.ref_name }}/genpay-macos-aarch64"
-                      curl -LO "https://github.com/antaresride/genpay/releases/download/${{ github.ref_name }}/genpay-macos-aarch64.sha256"
-                      shasum -a 256 -c genpay-macos-aarch64.sha256
-                      xattr -d com.apple.quarantine genpay-macos-aarch64 2>/dev/null || true
-                      chmod +x genpay-macos-aarch64
-                      sudo mv genpay-macos-aarch64 /usr/local/bin/genpay
-                      genpay --help
-                      ```
                   generate_release_notes: true
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

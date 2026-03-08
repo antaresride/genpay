@@ -103,7 +103,7 @@ jobs:
         name: Create Release
         needs: test-and-build
         if: startsWith(github.ref, 'refs/tags/v')
-        runs-on: ubuntu-latest  # Can stay on x86_64, just downloads artifacts
+        runs-on: ubuntu-latest
         steps:
             - uses: actions/download-artifact@v4
               with:
@@ -113,6 +113,42 @@ jobs:
             - uses: softprops/action-gh-release@v2
               with:
                   files: ./artifacts/*
+                  body: |
+                      ## Installation
+
+                      ### Linux (ARM64)
+
+                      ```bash
+                      cd ~/Downloads
+                      curl -LO "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/genpay-linux-aarch64"
+                      curl -LO "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/genpay-linux-aarch64.sha256"
+                      sha256sum -c genpay-linux-aarch64.sha256
+                      chmod +x genpay-linux-aarch64
+                      sudo mv genpay-linux-aarch64 /usr/local/bin/genpay
+                      genpay --help
+                      ```
+
+                      ### macOS (Apple Silicon)
+
+                      ```bash
+                      cd ~/Downloads
+                      curl -LO "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/genpay-macos-aarch64"
+                      curl -LO "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/genpay-macos-aarch64.sha256"
+                      shasum -a 256 -c genpay-macos-aarch64.sha256
+                      xattr -d com.apple.quarantine genpay-macos-aarch64 2>/dev/null || true
+                      chmod +x genpay-macos-aarch64
+                      sudo mv genpay-macos-aarch64 /usr/local/bin/genpay
+                      genpay --help
+                      ```
+
+                      ### Optional: Rename to `genpay`
+
+                      After downloading, you can rename for convenience:
+                      ```bash
+                      mv genpay-linux-aarch64 genpay
+                      # or
+                      mv genpay-macos-aarch64 genpay
+                      ```
                   generate_release_notes: true
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

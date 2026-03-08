@@ -13,8 +13,8 @@ docker build \
 # Remove the branch name from arguments so only compiler flags remain
 shift
 
-# Run the container
+# Run the container with ~/src mounted
 docker run --rm -it \
-  -v "$(pwd):/src" \
+  -v "$HOME/src:/src" \
   -u "$(id -u):$(id -g)" \
   "genpay:$BRANCH" "$@"

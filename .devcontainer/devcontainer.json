@@ -8,6 +8,8 @@
     "remoteUser": "root",
     "mounts": [
         "source=${localEnv:HOME}/.gitconfig,target=/root/.gitconfig,type=bind,consistency=cached",
-        "source=${localEnv:HOME}/.gitignore,target=/root/.gitignore,type=bind,consistency=cached"
-    ]
+        "source=${localEnv:HOME}/.gitignore,target=/root/.gitignore,type=bind,consistency=cached",
+        "source=${localEnv:HOME}/.ssh,target=/root/.ssh,type=bind,consistency=cached"
+    ],
+    "postCreateCommand": "git config --global core.excludesfile ~/.gitignore && chmod 700 /root/.ssh && chmod 600 /root/.ssh/* || true"
 }

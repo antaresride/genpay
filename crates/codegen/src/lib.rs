@@ -1,7 +1,7 @@
 use target_lexicon::Triple;
 
 pub fn identify_architecture() -> String {
-    Triple::from(Triple::host()).to_string()
+    Triple::host().to_string()
 }
 
 #[cfg(test)]

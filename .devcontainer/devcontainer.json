@@ -1,0 +1,9 @@
+{
+  "name": "Genpay Rust Dev",
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "context": "..",
+    "target": "dev"
+  },
+  "remoteUser": "root"
+}

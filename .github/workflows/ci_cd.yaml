@@ -1,4 +1,4 @@
-name: CI/CD & Release
+name: CI & Release
 
 on:
   push:
@@ -10,19 +10,25 @@ on:
 permissions:
   contents: write
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
-  # 1. Quick check for syntax and formatting errors
   lint:
     name: Lint & Format
     runs-on: ubuntu-latest
+    env:
+      # Required for llvm-sys crate to find LLVM 21
+      LLVM_SYS_211_PREFIX: /usr/lib/llvm-21
+      LIBCLANG_PATH: /usr/lib/llvm-21/lib
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install LLVM 21 (Ubuntu)
+      - name: Install LLVM 21
         run: |
           sudo apt-get update
           sudo apt-get install -y wget lsb-release software-properties-common gnupg curl libz-dev libedit-dev libxml2-dev
-          curl -L https://apt.llvm.org/llvm.sh  -o llvm.sh
+          curl -fsSL https://apt.llvm.org/llvm.sh -o llvm.sh
           chmod +x llvm.sh
           sudo ./llvm.sh 21 all
           sudo ln -sf /usr/lib/llvm-21/bin/llvm-config /usr/bin/llvm-config
@@ -35,12 +41,8 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Clippy
-        run: |
-          export LLVM_SYS_211_PREFIX=/usr/lib/llvm-21
-          export LIBCLANG_PATH=/usr/lib/llvm-21/lib
-          cargo clippy --workspace -- -D warnings
+        run: cargo clippy --workspace -- -D warnings
 
-  # 2. Main Test and Build Matrix
   test-and-build:
     name: ${{ matrix.platform }}
     needs: lint
@@ -51,9 +53,13 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             platform: linux-x86_64
+            llvm_path: /usr/lib/llvm-21
+            build_pkg: false
           - os: macos-15
             target: aarch64-apple-darwin
             platform: macos-aarch64
+            llvm_path: "" # Set dynamically via brew
+            build_pkg: true
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -65,74 +71,119 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      # --- LLVM 21 Setup ---
+      # --- LLVM 21 Setup with Environment ---
 
-      - name: Install LLVM 21 (Ubuntu)
+      - name: Setup LLVM 21 (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y wget lsb-release software-properties-common gnupg curl libz-dev libedit-dev libxml2-dev
-          curl -L https://apt.llvm.org/llvm.sh  -o llvm.sh
+          curl -fsSL https://apt.llvm.org/llvm.sh -o llvm.sh
           chmod +x llvm.sh
           sudo ./llvm.sh 21 all
           sudo ln -sf /usr/lib/llvm-21/bin/llvm-config /usr/bin/llvm-config
+          # Export to GITHUB_ENV for subsequent steps
+          echo "LLVM_SYS_211_PREFIX=/usr/lib/llvm-21" >> $GITHUB_ENV
+          echo "LIBCLANG_PATH=/usr/lib/llvm-21/lib" >> $GITHUB_ENV
 
-      - name: Install LLVM 21 (macOS)
+      - name: Setup LLVM 21 (macOS)
         if: matrix.os == 'macos-15'
         run: |
           brew install llvm@21
-          echo "LLVM_SYS_211_PREFIX=$(brew --prefix llvm@21)" >> $GITHUB_ENV
-          echo "$(brew --prefix llvm@21)/bin" >> $GITHUB_PATH
+          LLVM_PREFIX=$(brew --prefix llvm@21)
+          echo "LLVM_SYS_211_PREFIX=$LLVM_PREFIX" >> $GITHUB_ENV
+          echo "LIBCLANG_PATH=$LLVM_PREFIX/lib" >> $GITHUB_ENV
+          echo "$LLVM_PREFIX/bin" >> $GITHUB_PATH
 
-      # --- Caching & Testing ---
+      # --- Build & Test ---
 
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@v2
         with:
-          key: ${{ matrix.target }}-llvm-21-v5
+          key: ${{ matrix.target }}-llvm21-v1
 
-      - name: Run Tests (Ubuntu)
-        if: matrix.os == 'ubuntu-latest'
+      - name: Run Tests
+        run: cargo test --workspace --target ${{ matrix.target }}
+
+      # --- Release Build (Tags Only) ---
+
+      - name: Build Release Binary
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: cargo build --release --target ${{ matrix.target }} --bin genpay
+
+      # --- macOS Code Signing & Notarization (Only on Tags) ---
+
+      - name: Import macOS Signing Certificate
+        if: startsWith(github.ref, 'refs/tags/v') && matrix.build_pkg && secrets.MACOS_CERTIFICATE_P12_BASE64 != ''
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          p12-password: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+
+      - name: Sign macOS Binary
+        if: startsWith(github.ref, 'refs/tags/v') && matrix.build_pkg && secrets.MACOS_APP_IDENTITY != ''
         run: |
-          export LLVM_SYS_211_PREFIX=/usr/lib/llvm-21
-          export LIBCLANG_PATH=/usr/lib/llvm-21/lib
-          cargo test --workspace --target ${{ matrix.target }}
+          codesign --force --timestamp --options runtime \
+            --sign "${{ secrets.MACOS_APP_IDENTITY }}" \
+            --entitlements ./scripts/macos/entitlements.plist \
+            target/${{ matrix.target }}/release/genpay
 
-      - name: Run Tests (macOS)
-        if: matrix.os == 'macos-15'
+      - name: Create macOS Installer Package
+        if: startsWith(github.ref, 'refs/tags/v') && matrix.build_pkg
         run: |
-          export LLVM_SYS_211_PREFIX=$(brew --prefix llvm@21)
-          export LIBCLANG_PATH=$(brew --prefix llvm@21)/lib
-          cargo test --workspace --target ${{ matrix.target }}
+          VERSION=${GITHUB_REF_NAME#v}
+          mkdir -p pkgroot/usr/local/bin
+          cp target/${{ matrix.target }}/release/genpay pkgroot/usr/local/bin/
 
-      # --- Release Preparation (Only on Tags) ---
+          pkgbuild --root pkgroot \
+            --identifier com.antaresride.genpay \
+            --version "$VERSION" \
+            --install-location / \
+            --scripts ./scripts/macos/scripts \
+            genpay-${{ matrix.platform }}.pkg
 
-      - name: Build Release Binary (Ubuntu)
-        if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'ubuntu-latest'
+      - name: Sign macOS Installer Package
+        if: startsWith(github.ref, 'refs/tags/v') && matrix.build_pkg && secrets.MACOS_INSTALLER_IDENTITY != ''
         run: |
-          export LLVM_SYS_211_PREFIX=/usr/lib/llvm-21
-          export LIBCLANG_PATH=/usr/lib/llvm-21/lib
-          cargo build --release --target ${{ matrix.target }} --bin genpay
+          productsign --sign "${{ secrets.MACOS_INSTALLER_IDENTITY }}" \
+            genpay-${{ matrix.platform }}.pkg \
+            genpay-${{ matrix.platform }}-signed.pkg
+          mv genpay-${{ matrix.platform }}-signed.pkg genpay-${{ matrix.platform }}.pkg
 
-      - name: Build Release Binary (macOS)
-        if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'macos-15'
+      - name: Notarize macOS Installer
+        if: startsWith(github.ref, 'refs/tags/v') && matrix.build_pkg && secrets.MACOS_TEAM_ID != ''
         run: |
-          export LLVM_SYS_211_PREFIX=$(brew --prefix llvm@21)
-          export LIBCLANG_PATH=$(brew --prefix llvm@21)/lib
-          cargo build --release --target ${{ matrix.target }} --bin genpay
+          xcrun notarytool submit genpay-${{ matrix.platform }}.pkg \
+            --team-id "${{ secrets.MACOS_TEAM_ID }}" \
+            --apple-id "${{ secrets.MACOS_APPLE_ID }}" \
+            --password "${{ secrets.MACOS_APP_SPECIFIC_PASSWORD }}" \
+            --wait
+
+          xcrun stapler staple genpay-${{ matrix.platform }}.pkg
+
+      # --- Prepare Release Assets ---
 
       - name: Prepare Release Assets
         if: startsWith(github.ref, 'refs/tags/v')
         shell: bash
         run: |
-          cp target/${{ matrix.target }}/release/genpay genpay-${{ matrix.platform }}
-          if command -v sha256sum >/dev/null; then
-            sha256sum genpay-${{ matrix.platform }} > genpay-${{ matrix.platform }}.sha256
+          cp "target/${{ matrix.target }}/release/genpay" "genpay-${{ matrix.platform }}"
+
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "genpay-${{ matrix.platform }}" > "genpay-${{ matrix.platform }}.sha256"
           else
-            shasum -a 256 genpay-${{ matrix.platform }} > genpay-${{ matrix.platform }}.sha256
+            shasum -a 256 "genpay-${{ matrix.platform }}" > "genpay-${{ matrix.platform }}.sha256"
           fi
 
-      - name: Upload Artifact
+          # Handle PKG for macOS
+          if [ -f "genpay-${{ matrix.platform }}.pkg" ]; then
+            if command -v sha256sum >/dev/null 2>&1; then
+              sha256sum "genpay-${{ matrix.platform }}.pkg" > "genpay-${{ matrix.platform }}.pkg.sha256"
+            else
+              shasum -a 256 "genpay-${{ matrix.platform }}.pkg" > "genpay-${{ matrix.platform }}.pkg.sha256"
+            fi
+          fi
+
+      - name: Upload Artifacts
         if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-artifact@v4
         with:
@@ -140,8 +191,10 @@ jobs:
           path: |
             genpay-${{ matrix.platform }}
             genpay-${{ matrix.platform }}.sha256
+            genpay-${{ matrix.platform }}.pkg
+            genpay-${{ matrix.platform }}.pkg.sha256
+          if-no-files-found: warn
 
-  # 3. Create Single GitHub Release with All Binaries
   create-release:
     name: Create Release
     needs: test-and-build
@@ -159,39 +212,42 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ./artifacts/*
+          fail_on_unmatched_files: false
           body: |
             ## Installation
+
+            ### macOS (Signed PKG Installer)
+
+            Download and install:
+            ```bash
+            curl -LO "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/genpay-macos-aarch64.pkg"
+            sudo installer -pkg genpay-macos-aarch64.pkg -target /
+            genpay --help
+            ```
+
+            Or use Homebrew (coming soon):
+            ```bash
+            brew tap antaresride/genpay
+            brew install genpay
+            ```
+
+            ### macOS (Binary)
+
+            ```bash
+            curl -LO "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/genpay-macos-aarch64"
+            shasum -a 256 -c genpay-macos-aarch64.sha256
+            xattr -d com.apple.quarantine genpay-macos-aarch64 2>/dev/null || true
+            chmod +x genpay-macos-aarch64
+            sudo mv genpay-macos-aarch64 /usr/local/bin/genpay
+            ```
 
             ### Linux (x86_64)
 
             ```bash
-            cd ~/Downloads
-            curl -LO https://github.com/antaresride/genpay/releases/download/ ${{ github.ref_name }}/genpay-linux-x86_64
-            curl -LO https://github.com/antaresride/genpay/releases/download/ ${{ github.ref_name }}/genpay-linux-x86_64.sha256
+            curl -LO "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/genpay-linux-x86_64"
             sha256sum -c genpay-linux-x86_64.sha256
             chmod +x genpay-linux-x86_64
-            ./genpay-linux-x86_64 --help
-            ```
-
-            ### macOS (Apple Silicon)
-
-            ```bash
-            cd ~/Downloads
-            curl -LO https://github.com/antaresride/genpay/releases/download/ ${{ github.ref_name }}/genpay-macos-aarch64
-            curl -LO https://github.com/antaresride/genpay/releases/download/ ${{ github.ref_name }}/genpay-macos-aarch64.sha256
-            shasum -a 256 -c genpay-macos-aarch64.sha256
-            xattr -d com.apple.quarantine genpay-macos-aarch64
-            chmod +x genpay-macos-aarch64
-            ./genpay-macos-aarch64 --help
-            ```
-
-            ### Optional: Rename to `genpay`
-
-            After downloading, you can rename for convenience:
-            ```bash
-            mv genpay-linux-x86_64 genpay
-            # or
-            mv genpay-macos-aarch64 genpay
+            sudo mv genpay-linux-x86_64 /usr/local/bin/genpay
             ```
           generate_release_notes: true
         env:

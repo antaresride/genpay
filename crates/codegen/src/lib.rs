@@ -1,14 +1,19 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
+use target_lexicon::Triple;
+
+pub fn identify_architecture() -> String {
+    Triple::from(Triple::host()).to_string()
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use target_lexicon::{Aarch64Architecture, Architecture, Triple};
 
     #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+    fn test_identify_architecture() {
+        let triple = Triple::from(Triple::host());
+        assert_eq!(
+            triple.architecture,
+            Architecture::Aarch64(Aarch64Architecture::Aarch64)
+        );
     }
 }

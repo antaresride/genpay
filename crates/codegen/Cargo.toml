@@ -4,3 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+# This tells Cargo to inherit the version/details from the root workspace
+target-lexicon = { workspace = true }

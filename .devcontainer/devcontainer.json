@@ -1,9 +1,13 @@
 {
-  "name": "Genpay Rust Dev",
-  "build": {
-    "dockerfile": "../Dockerfile",
-    "context": "..",
-    "target": "dev"
-  },
-  "remoteUser": "root"
+    "name": "Genpay Rust Dev",
+    "build": {
+        "dockerfile": "../Dockerfile",
+        "context": "..",
+        "target": "dev"
+    },
+    "remoteUser": "root",
+    "mounts": [
+        "source=${localEnv:HOME}/.gitconfig,target=/root/.gitconfig,type=bind,consistency=cached",
+        "source=${localEnv:HOME}/.gitignore,target=/root/.gitignore,type=bind,consistency=cached"
+    ]
 }

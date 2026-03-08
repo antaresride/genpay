@@ -12,6 +12,14 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  # Set secrets as env vars so they can be used in conditionals
+  MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+  MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+  MACOS_APP_IDENTITY: ${{ secrets.MACOS_APP_IDENTITY }}
+  MACOS_INSTALLER_IDENTITY: ${{ secrets.MACOS_INSTALLER_IDENTITY }}
+  MACOS_TEAM_ID: ${{ secrets.MACOS_TEAM_ID }}
+  MACOS_APPLE_ID: ${{ secrets.MACOS_APPLE_ID }}
+  MACOS_APP_SPECIFIC_PASSWORD: ${{ secrets.MACOS_APP_SPECIFIC_PASSWORD }}
 
 jobs:
   lint:
@@ -113,14 +121,14 @@ jobs:
       # --- macOS Code Signing & Notarization (Only on Tags) ---
 
       - name: Import macOS Signing Certificate
-        if: startsWith(github.ref, 'refs/tags/v') && matrix.build_pkg && secrets.MACOS_CERTIFICATE_P12_BASE64 != ''
+        if: startsWith(github.ref, 'refs/tags/v') && matrix.build_pkg && env.MACOS_CERTIFICATE_P12_BASE64 != ''
         uses: apple-actions/import-codesign-certs@v3
         with:
           p12-file-base64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
           p12-password: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
 
       - name: Sign macOS Binary
-        if: startsWith(github.ref, 'refs/tags/v') && matrix.build_pkg && secrets.MACOS_APP_IDENTITY != ''
+        if: startsWith(github.ref, 'refs/tags/v') && matrix.build_pkg && env.MACOS_APP_IDENTITY != ''
         run: |
           codesign --force --timestamp --options runtime \
             --sign "${{ secrets.MACOS_APP_IDENTITY }}" \
@@ -142,7 +150,7 @@ jobs:
             genpay-${{ matrix.platform }}.pkg
 
       - name: Sign macOS Installer Package
-        if: startsWith(github.ref, 'refs/tags/v') && matrix.build_pkg && secrets.MACOS_INSTALLER_IDENTITY != ''
+        if: startsWith(github.ref, 'refs/tags/v') && matrix.build_pkg && env.MACOS_INSTALLER_IDENTITY != ''
         run: |
           productsign --sign "${{ secrets.MACOS_INSTALLER_IDENTITY }}" \
             genpay-${{ matrix.platform }}.pkg \
@@ -150,7 +158,7 @@ jobs:
           mv genpay-${{ matrix.platform }}-signed.pkg genpay-${{ matrix.platform }}.pkg
 
       - name: Notarize macOS Installer
-        if: startsWith(github.ref, 'refs/tags/v') && matrix.build_pkg && secrets.MACOS_TEAM_ID != ''
+        if: startsWith(github.ref, 'refs/tags/v') && matrix.build_pkg && env.MACOS_TEAM_ID != ''
         run: |
           xcrun notarytool submit genpay-${{ matrix.platform }}.pkg \
             --team-id "${{ secrets.MACOS_TEAM_ID }}" \

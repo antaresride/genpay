@@ -1,198 +1,198 @@
 name: CI & Release
 
 on:
-  push:
-    branches: [ "main" ]
-    tags: [ "v*" ]
-  pull_request:
-    branches: [ "main" ]
+    push:
+        branches: ["main"]
+        tags: ["v*"]
+    pull_request:
+        branches: ["main"]
 
 permissions:
-  contents: write
+    contents: write
 
 jobs:
-  # 1. Quick check for syntax and formatting errors
-  lint:
-    name: Lint & Format
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install LLVM 21 (Ubuntu)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wget lsb-release software-properties-common gnupg curl libz-dev libedit-dev libxml2-dev
-          curl -L https://apt.llvm.org/llvm.sh -o llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh 21 all
-          sudo ln -sf /usr/lib/llvm-21/bin/llvm-config /usr/bin/llvm-config
-      
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-      
-      - name: Check Formatting
-        run: cargo fmt --all -- --check
-      
-      - name: Clippy
-        run: |
-          export LLVM_SYS_211_PREFIX=/usr/lib/llvm-21
-          export LIBCLANG_PATH=/usr/lib/llvm-21/lib
-          cargo clippy --workspace -- -D warnings
+    # 1. Quick check for syntax and formatting errors
+    lint:
+        name: Lint & Format
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
 
-  # 2. Main Test and Build Matrix
-  test-and-build:
-    name: ${{ matrix.platform }}
-    needs: lint
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            platform: linux-x86_64
-          - os: macos-15
-            target: aarch64-apple-darwin
-            platform: macos-aarch64
-    runs-on: ${{ matrix.os }}
-    
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+            - name: Install LLVM 21 (Ubuntu)
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y wget lsb-release software-properties-common gnupg curl libz-dev libedit-dev libxml2-dev
+                  curl -L https://apt.llvm.org/llvm.sh -o llvm.sh
+                  chmod +x llvm.sh
+                  sudo ./llvm.sh 21 all
+                  sudo ln -sf /usr/lib/llvm-21/bin/llvm-config /usr/bin/llvm-config
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
+            - uses: dtolnay/rust-toolchain@stable
+              with:
+                  components: rustfmt, clippy
 
-      # --- LLVM 21 Setup ---
-      
-      - name: Install LLVM 21 (Ubuntu)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wget lsb-release software-properties-common gnupg curl libz-dev libedit-dev libxml2-dev
-          curl -L https://apt.llvm.org/llvm.sh -o llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh 21 all
-          sudo ln -sf /usr/lib/llvm-21/bin/llvm-config /usr/bin/llvm-config
+            - name: Check Formatting
+              run: cargo fmt --all -- --check
 
-      - name: Install LLVM 21 (macOS)
-        if: matrix.os == 'macos-15'
-        run: |
-          brew install llvm@21
-          echo "LLVM_SYS_211_PREFIX=$(brew --prefix llvm@21)" >> $GITHUB_ENV
-          echo "$(brew --prefix llvm@21)/bin" >> $GITHUB_PATH
+            - name: Clippy
+              run: |
+                  export LLVM_SYS_211_PREFIX=/usr/lib/llvm-21
+                  export LIBCLANG_PATH=/usr/lib/llvm-21/lib
+                  cargo clippy --workspace -- -D warnings
 
-      # --- Caching & Testing ---
+    # 2. Main Test and Build Matrix
+    test-and-build:
+        name: ${{ matrix.platform }}
+        needs: lint
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - os: ubuntu-24.04-arm
+                      target: aarch64-unknown-linux-gnu
+                      platform: linux-aarch64
+                    - os: macos-15
+                      target: aarch64-apple-darwin
+                      platform: macos-aarch64
+        runs-on: ${{ matrix.os }}
 
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ matrix.target }}-llvm-21-v5
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v4
 
-      - name: Run Tests (Ubuntu)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          export LLVM_SYS_211_PREFIX=/usr/lib/llvm-21
-          export LIBCLANG_PATH=/usr/lib/llvm-21/lib
-          cargo test --workspace --target ${{ matrix.target }}
+            - name: Install Rust
+              uses: dtolnay/rust-toolchain@stable
+              with:
+                  targets: ${{ matrix.target }}
 
-      - name: Run Tests (macOS)
-        if: matrix.os == 'macos-15'
-        run: |
-          export LLVM_SYS_211_PREFIX=$(brew --prefix llvm@21)
-          export LIBCLANG_PATH=$(brew --prefix llvm@21)/lib
-          cargo test --workspace --target ${{ matrix.target }}
+            # --- LLVM 21 Setup ---
 
-      # --- Release Preparation (Only on Tags) ---
+            - name: Install LLVM 21 (Ubuntu)
+              if: matrix.os == 'ubuntu-latest'
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y wget lsb-release software-properties-common gnupg curl libz-dev libedit-dev libxml2-dev
+                  curl -L https://apt.llvm.org/llvm.sh -o llvm.sh
+                  chmod +x llvm.sh
+                  sudo ./llvm.sh 21 all
+                  sudo ln -sf /usr/lib/llvm-21/bin/llvm-config /usr/bin/llvm-config
 
-      - name: Build Release Binary (Ubuntu)
-        if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'ubuntu-latest'
-        run: |
-          export LLVM_SYS_211_PREFIX=/usr/lib/llvm-21
-          export LIBCLANG_PATH=/usr/lib/llvm-21/lib
-          cargo build --release --target ${{ matrix.target }} --bin genpay
+            - name: Install LLVM 21 (macOS)
+              if: matrix.os == 'macos-15'
+              run: |
+                  brew install llvm@21
+                  echo "LLVM_SYS_211_PREFIX=$(brew --prefix llvm@21)" >> $GITHUB_ENV
+                  echo "$(brew --prefix llvm@21)/bin" >> $GITHUB_PATH
 
-      - name: Build Release Binary (macOS)
-        if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'macos-15'
-        run: |
-          export LLVM_SYS_211_PREFIX=$(brew --prefix llvm@21)
-          export LIBCLANG_PATH=$(brew --prefix llvm@21)/lib
-          cargo build --release --target ${{ matrix.target }} --bin genpay
+            # --- Caching & Testing ---
 
-      - name: Prepare Release Assets
+            - name: Rust Cache
+              uses: Swatinem/rust-cache@v2
+              with:
+                  key: ${{ matrix.target }}-llvm-21-v5
+
+            - name: Run Tests (Ubuntu)
+              if: matrix.os == 'ubuntu-latest'
+              run: |
+                  export LLVM_SYS_211_PREFIX=/usr/lib/llvm-21
+                  export LIBCLANG_PATH=/usr/lib/llvm-21/lib
+                  cargo test --workspace --target ${{ matrix.target }}
+
+            - name: Run Tests (macOS)
+              if: matrix.os == 'macos-15'
+              run: |
+                  export LLVM_SYS_211_PREFIX=$(brew --prefix llvm@21)
+                  export LIBCLANG_PATH=$(brew --prefix llvm@21)/lib
+                  cargo test --workspace --target ${{ matrix.target }}
+
+            # --- Release Preparation (Only on Tags) ---
+
+            - name: Build Release Binary (Ubuntu)
+              if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'ubuntu-latest'
+              run: |
+                  export LLVM_SYS_211_PREFIX=/usr/lib/llvm-21
+                  export LIBCLANG_PATH=/usr/lib/llvm-21/lib
+                  cargo build --release --target ${{ matrix.target }} --bin genpay
+
+            - name: Build Release Binary (macOS)
+              if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'macos-15'
+              run: |
+                  export LLVM_SYS_211_PREFIX=$(brew --prefix llvm@21)
+                  export LIBCLANG_PATH=$(brew --prefix llvm@21)/lib
+                  cargo build --release --target ${{ matrix.target }} --bin genpay
+
+            - name: Prepare Release Assets
+              if: startsWith(github.ref, 'refs/tags/v')
+              shell: bash
+              run: |
+                  cp target/${{ matrix.target }}/release/genpay genpay-${{ matrix.platform }}
+                  if command -v sha256sum >/dev/null; then
+                    sha256sum genpay-${{ matrix.platform }} > genpay-${{ matrix.platform }}.sha256
+                  else
+                    shasum -a 256 genpay-${{ matrix.platform }} > genpay-${{ matrix.platform }}.sha256
+                  fi
+
+            - name: Upload Artifact
+              if: startsWith(github.ref, 'refs/tags/v')
+              uses: actions/upload-artifact@v4
+              with:
+                  name: genpay-${{ matrix.platform }}
+                  path: |
+                      genpay-${{ matrix.platform }}
+                      genpay-${{ matrix.platform }}.sha256
+
+    # 3. Create Single GitHub Release with All Binaries
+    create-release:
+        name: Create Release
+        needs: test-and-build
         if: startsWith(github.ref, 'refs/tags/v')
-        shell: bash
-        run: |
-          cp target/${{ matrix.target }}/release/genpay genpay-${{ matrix.platform }}
-          if command -v sha256sum >/dev/null; then
-            sha256sum genpay-${{ matrix.platform }} > genpay-${{ matrix.platform }}.sha256
-          else
-            shasum -a 256 genpay-${{ matrix.platform }} > genpay-${{ matrix.platform }}.sha256
-          fi
+        runs-on: ubuntu-latest
+        steps:
+            - name: Download All Artifacts
+              uses: actions/download-artifact@v4
+              with:
+                  path: ./artifacts
+                  pattern: genpay-*
+                  merge-multiple: true
 
-      - name: Upload Artifact
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/upload-artifact@v4
-        with:
-          name: genpay-${{ matrix.platform }}
-          path: |
-            genpay-${{ matrix.platform }}
-            genpay-${{ matrix.platform }}.sha256
+            - name: Create GitHub Release
+              uses: softprops/action-gh-release@v2
+              with:
+                  files: ./artifacts/*
+                  body: |
+                      ## Installation
 
-  # 3. Create Single GitHub Release with All Binaries
-  create-release:
-    name: Create Release
-    needs: test-and-build
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download All Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ./artifacts
-          pattern: genpay-*
-          merge-multiple: true
+                      ### Linux (x86_64)
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: ./artifacts/*
-          body: |
-            ## Installation
-            
-            ### Linux (x86_64)
-            
-            ```bash
-            cd ~/Downloads
-            curl -LO https://github.com/antaresride/genpay/releases/download/${{ github.ref_name }}/genpay-linux-x86_64
-            curl -LO https://github.com/antaresride/genpay/releases/download/${{ github.ref_name }}/genpay-linux-x86_64.sha256
-            sha256sum -c genpay-linux-x86_64.sha256
-            chmod +x genpay-linux-x86_64
-            ./genpay-linux-x86_64 --help
-            ```
-            
-            ### macOS (Apple Silicon)
-            
-            ```bash
-            cd ~/Downloads
-            curl -LO https://github.com/antaresride/genpay/releases/download/${{ github.ref_name }}/genpay-macos-aarch64
-            curl -LO https://github.com/antaresride/genpay/releases/download/${{ github.ref_name }}/genpay-macos-aarch64.sha256
-            shasum -a 256 -c genpay-macos-aarch64.sha256
-            xattr -d com.apple.quarantine genpay-macos-aarch64
-            chmod +x genpay-macos-aarch64
-            ./genpay-macos-aarch64 --help
-            ```
-            
-            ### Optional: Rename to `genpay`
-            
-            After downloading, you can rename for convenience:
-            ```bash
-            mv genpay-linux-x86_64 genpay
-            # or
-            mv genpay-macos-aarch64 genpay
-            ```
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                      ```bash
+                      cd ~/Downloads
+                      curl -LO https://github.com/antaresride/genpay/releases/download/${{ github.ref_name }}/genpay-linux-x86_64
+                      curl -LO https://github.com/antaresride/genpay/releases/download/${{ github.ref_name }}/genpay-linux-x86_64.sha256
+                      sha256sum -c genpay-linux-x86_64.sha256
+                      chmod +x genpay-linux-x86_64
+                      ./genpay-linux-x86_64 --help
+                      ```
+
+                      ### macOS (Apple Silicon)
+
+                      ```bash
+                      cd ~/Downloads
+                      curl -LO https://github.com/antaresride/genpay/releases/download/${{ github.ref_name }}/genpay-macos-aarch64
+                      curl -LO https://github.com/antaresride/genpay/releases/download/${{ github.ref_name }}/genpay-macos-aarch64.sha256
+                      shasum -a 256 -c genpay-macos-aarch64.sha256
+                      xattr -d com.apple.quarantine genpay-macos-aarch64
+                      chmod +x genpay-macos-aarch64
+                      ./genpay-macos-aarch64 --help
+                      ```
+
+                      ### Optional: Rename to `genpay`
+
+                      After downloading, you can rename for convenience:
+                      ```bash
+                      mv genpay-linux-x86_64 genpay
+                      # or
+                      mv genpay-macos-aarch64 genpay
+                      ```
+                  generate_release_notes: true
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

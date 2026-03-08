@@ -1,0 +1,21 @@
+{
+  "lsp": {
+    "rust-analyzer": {
+      "binary": {
+        // Forces Zed to use the rust-analyzer installed in the container
+        "ignore_system_version": true
+      },
+      "initialization_options": {
+        "check": {
+          "command": "clippy",
+          "allTargets": true
+        },
+        "rust": {
+          // Separates the analyzer's target directory to prevent lock contention
+          "analyzerTargetDir": "target/zed-analyzer"
+        }
+      }
+    }
+  }
+}
+

@@ -15,6 +15,7 @@ ENV PATH="/usr/lib/llvm-21/bin:${PATH}"
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
+COPY crates ./crates
 RUN cargo build --release
 
 # --- STAGE 2: Development ---

@@ -13,7 +13,7 @@ permissions:
 jobs:
     lint:
         name: Lint & Format
-        runs-on: ubuntu-latest
+        runs-on: 
         env:
             # Required for llvm-sys crate to find LLVM 21
             LLVM_SYS_211_PREFIX: /usr/lib/llvm-21

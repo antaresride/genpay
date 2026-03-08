@@ -12,7 +12,6 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  # Set secrets as env vars so they can be used in conditionals
   MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
   MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
   MACOS_APP_IDENTITY: ${{ secrets.MACOS_APP_IDENTITY }}
@@ -26,7 +25,6 @@ jobs:
     name: Lint & Format
     runs-on: ubuntu-latest
     env:
-      # Required for llvm-sys crate to find LLVM 21
       LLVM_SYS_211_PREFIX: /usr/lib/llvm-21
       LIBCLANG_PATH: /usr/lib/llvm-21/lib
     steps:
@@ -61,12 +59,9 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             platform: linux-x86_64
-            llvm_path: /usr/lib/llvm-21
-            build_pkg: false
           - os: macos-15
             target: aarch64-apple-darwin
             platform: macos-aarch64
-            llvm_path: "" # Set dynamically via brew
             build_pkg: true
     runs-on: ${{ matrix.os }}
 
@@ -79,8 +74,6 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      # --- LLVM 21 Setup with Environment ---
-
       - name: Setup LLVM 21 (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -90,7 +83,6 @@ jobs:
           chmod +x llvm.sh
           sudo ./llvm.sh 21 all
           sudo ln -sf /usr/lib/llvm-21/bin/llvm-config /usr/bin/llvm-config
-          # Export to GITHUB_ENV for subsequent steps
           echo "LLVM_SYS_211_PREFIX=/usr/lib/llvm-21" >> $GITHUB_ENV
           echo "LIBCLANG_PATH=/usr/lib/llvm-21/lib" >> $GITHUB_ENV
 
@@ -103,8 +95,6 @@ jobs:
           echo "LIBCLANG_PATH=$LLVM_PREFIX/lib" >> $GITHUB_ENV
           echo "$LLVM_PREFIX/bin" >> $GITHUB_PATH
 
-      # --- Build & Test ---
-
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}-llvm21-v1
@@ -112,13 +102,9 @@ jobs:
       - name: Run Tests
         run: cargo test --workspace --target ${{ matrix.target }}
 
-      # --- Release Build (Tags Only) ---
-
       - name: Build Release Binary
         if: startsWith(github.ref, 'refs/tags/v')
         run: cargo build --release --target ${{ matrix.target }} --bin genpay
-
-      # --- macOS Code Signing & Notarization (Only on Tags) ---
 
       - name: Import macOS Signing Certificate
         if: startsWith(github.ref, 'refs/tags/v') && matrix.build_pkg && env.MACOS_CERTIFICATE_P12_BASE64 != ''
@@ -132,7 +118,6 @@ jobs:
         run: |
           codesign --force --timestamp --options runtime \
             --sign "${{ secrets.MACOS_APP_IDENTITY }}" \
-            --entitlements ./scripts/macos/entitlements.plist \
             target/${{ matrix.target }}/release/genpay
 
       - name: Create macOS Installer Package
@@ -146,7 +131,6 @@ jobs:
             --identifier com.antaresride.genpay \
             --version "$VERSION" \
             --install-location / \
-            --scripts ./scripts/macos/scripts \
             genpay-${{ matrix.platform }}.pkg
 
       - name: Sign macOS Installer Package
@@ -168,8 +152,6 @@ jobs:
 
           xcrun stapler staple genpay-${{ matrix.platform }}.pkg
 
-      # --- Prepare Release Assets ---
-
       - name: Prepare Release Assets
         if: startsWith(github.ref, 'refs/tags/v')
         shell: bash
@@ -182,7 +164,6 @@ jobs:
             shasum -a 256 "genpay-${{ matrix.platform }}" > "genpay-${{ matrix.platform }}.sha256"
           fi
 
-          # Handle PKG for macOS
           if [ -f "genpay-${{ matrix.platform }}.pkg" ]; then
             if command -v sha256sum >/dev/null 2>&1; then
               sha256sum "genpay-${{ matrix.platform }}.pkg" > "genpay-${{ matrix.platform }}.pkg.sha256"
@@ -231,12 +212,6 @@ jobs:
             curl -LO "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/genpay-macos-aarch64.pkg"
             sudo installer -pkg genpay-macos-aarch64.pkg -target /
             genpay --help
-            ```
-
-            Or use Homebrew (coming soon):
-            ```bash
-            brew tap antaresride/genpay
-            brew install genpay
             ```
 
             ### macOS (Binary)

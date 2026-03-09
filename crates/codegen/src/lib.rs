@@ -1,19 +1,15 @@
 use target_lexicon::Triple;
 
-pub fn identify_architecture() -> String {
+pub fn identify_architecture_aarch64() -> String {
     Triple::host().to_string()
 }
 
 #[cfg(test)]
 mod tests {
-    use target_lexicon::{Aarch64Architecture, Architecture, Triple};
-
+    use super::*;
     #[test]
-    fn test_identify_architecture() {
-        let triple = Triple::from(Triple::host());
-        assert_eq!(
-            triple.architecture,
-            Architecture::Aarch64(Aarch64Architecture::Aarch64)
-        );
+    fn test_identify_architecture_aarch64() {
+        let arquitecture: &'static str = "aarch64-unknown-linux-gnu";
+        assert_eq!(identify_architecture_aarch64().to_string(), arquitecture);
     }
 }

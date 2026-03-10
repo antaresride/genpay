@@ -1,5 +1,7 @@
-/*use target_lexicon::Triple;
+#[cfg(feature = "use_cranelift")]
+use target_lexicon::Triple;
 
+#[cfg(feature = "use_cranelift")]
 pub fn identify_architecture_aarch64() -> String {
     Triple::host().to_string()
 }
@@ -18,4 +20,3 @@ mod tests {
         );
     }
 }
-*/

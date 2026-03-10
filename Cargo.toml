@@ -25,6 +25,7 @@ mimalloc = { workspace = true, optional = true }
 llvm = ["dep:inkwell", "dep:llvm-sys"]
 use_cranelift = [
     "dep:cranelift-codegen",
+    "codegen/use_cranelift",
     "dep:cranelift-module",
     "dep:cranelift-object",
     "dep:target-lexicon"

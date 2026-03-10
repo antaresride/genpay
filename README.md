@@ -12,9 +12,9 @@
 - **Backend:** LLVM and Cranelift
 - **Errors:** thiserror
 - **Error Reporting:** miette, colored
-- **Command Line Interface:** clap
-- **Arena Allocation:** bumpalo
-- **Memory Allocation:** Minimalloc
+- **Command Line Interface:** Clap
+- **Arena Allocation:** Bumpalo
+- **Memory Allocation:** Mimalloc
 
 ### Modular Design
 - `genpay` - Combines all submodules into the main process.

@@ -19,6 +19,7 @@ cranelift-module = { workspace = true, optional = true }
 cranelift-object = { workspace = true, optional = true }
 target-lexicon = { workspace = true, optional = true }
 mimalloc = { workspace = true, optional = true }
+bumpalo = { workspace = true, optional = true }
 
 [features]
 # Create high-level features for each backend
@@ -35,6 +36,7 @@ use_cranelift = [
 # Optional: allow enabling mimalloc via a flag
 # default = ["use_mimalloc"]
 use_mimalloc = ["dep:mimalloc"]
+use_arena = ["dep:bumpalo", "parser/use_arena"]
 
 # Optional: Set a default backend
 # default = ["llvm"]
@@ -62,3 +64,4 @@ inkwell = { version = "0.8.0", features = ["llvm21-1"] }
 llvm-sys = "211.0.0"
 # The root binary crate can then use it optionally
 mimalloc = { version = "0.1.48", features=["secure"] }
+bumpalo = { version = "3.20.2" }

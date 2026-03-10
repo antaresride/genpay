@@ -11,11 +11,30 @@ semantic = { path = "crates/semantic" }
 codegen = { path = "crates/codegen" }
 linker = { path = "crates/linker" }
 # The root binary crate can then use it optionally
+# Make them optional so they don't compile unless asked
+inkwell = { workspace = true, optional = true }
+llvm-sys = { workspace = true, optional = true }
+cranelift-codegen = { workspace = true, optional = true }
+cranelift-module = { workspace = true, optional = true }
+cranelift-object = { workspace = true, optional = true }
+target-lexicon = { workspace = true, optional = true }
 mimalloc = { workspace = true, optional = true }
+
 [features]
+# Create high-level features for each backend
+llvm = ["dep:inkwell", "dep:llvm-sys"]
+use_cranelift = [
+    "dep:cranelift-codegen",
+    "dep:cranelift-module",
+    "dep:cranelift-object",
+    "dep:target-lexicon"
+]
 # Optional: allow enabling mimalloc via a flag
 # default = ["use_mimalloc"]
 use_mimalloc = ["dep:mimalloc"]
+
+# Optional: Set a default backend
+# default = ["llvm"]
 
 [workspace]
 members = [

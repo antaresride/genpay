@@ -4,5 +4,22 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-# This tells Cargo to inherit the version/details from the root workspace
-target-lexicon = { workspace = true }
+# Inherit from workspace and make them OPTIONAL here too
+inkwell = { workspace = true, optional = true }
+llvm-sys = { workspace = true, optional = true }
+cranelift-codegen = { workspace = true, optional = true }
+cranelift-module = { workspace = true, optional = true }
+cranelift-object = { workspace = true, optional = true }
+target-lexicon = { workspace = true, optional = true }
+mimalloc = { workspace = true, optional = true }
+
+[features]
+# Define these features inside the codegen crate
+llvm = ["dep:inkwell", "dep:llvm-sys"]
+use_cranelift = [
+    "dep:cranelift-codegen",
+    "dep:cranelift-module",
+    "dep:cranelift-object",
+    "dep:target-lexicon"
+]
+use_mimalloc = ["dep:mimalloc"]

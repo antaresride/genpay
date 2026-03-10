@@ -4,10 +4,21 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-cranelift-module = { workspace = true }
-cranelift-object = { workspace = true }
-target-lexicon = { workspace = true }
-inkwell = { workspace = true }
+# Inherit from workspace and make them OPTIONAL here too
+cranelift-module = { workspace = true, optional = true }
+cranelift-object = { workspace = true , optional = true }
+target-lexicon = { workspace = true, optional = true }
+inkwell = { workspace = true, optional = true }
 # Optional: only if it needs raw FFI
-# llvm-sys = { workspace = true }
+llvm-sys = { workspace = true, optional = true }
+mimalloc = { workspace = true, optional = true }
 
+[features]
+# Define these features inside the codegen crate
+llvm = ["dep:inkwell", "dep:llvm-sys"]
+use_cranelift = [
+    "dep:cranelift-module",
+    "dep:cranelift-object",
+    "dep:target-lexicon"
+]
+use_mimalloc = ["dep:mimalloc"]

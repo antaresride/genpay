@@ -1,4 +1,4 @@
-use target_lexicon::Triple;
+/*use target_lexicon::Triple;
 
 pub fn identify_architecture_aarch64() -> String {
     Triple::host().to_string()
@@ -18,3 +18,4 @@ mod tests {
         );
     }
 }
+*/

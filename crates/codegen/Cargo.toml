@@ -15,11 +15,12 @@ mimalloc = { workspace = true, optional = true }
 
 [features]
 # Define these features inside the codegen crate
-llvm = ["dep:inkwell", "dep:llvm-sys"]
+use_llvm = ["dep:inkwell", "dep:llvm-sys"]
 use_cranelift = [
     "dep:cranelift-codegen",
     "dep:cranelift-module",
     "dep:cranelift-object",
     "dep:target-lexicon"
 ]
+# Define just to run performance tests with mimalloc
 use_mimalloc = ["dep:mimalloc"]

@@ -22,7 +22,9 @@ mimalloc = { workspace = true, optional = true }
 
 [features]
 # Create high-level features for each backend
-llvm = ["dep:inkwell", "dep:llvm-sys"]
+# could be configured  "codegen/use_llvm as it was configured in use_cranelift"
+use_llvm = ["dep:inkwell", "dep:llvm-sys"]
+# When 'use_cranelift' is active here, it turns it on in codegen and linker
 use_cranelift = [
     "dep:cranelift-codegen",
     "codegen/use_cranelift",

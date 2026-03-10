@@ -15,7 +15,7 @@ mimalloc = { workspace = true, optional = true }
 
 [features]
 # Define these features inside the codegen crate
-llvm = ["dep:inkwell", "dep:llvm-sys"]
+use_llvm = ["dep:inkwell", "dep:llvm-sys"]
 use_cranelift = [
     "dep:cranelift-module",
     "dep:cranelift-object",

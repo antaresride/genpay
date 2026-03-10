@@ -12,6 +12,8 @@ cranelift-module = { workspace = true, optional = true }
 cranelift-object = { workspace = true, optional = true }
 target-lexicon = { workspace = true, optional = true }
 mimalloc = { workspace = true, optional = true }
+# Add this to access the raw C functions for stats
+libmimalloc-sys = { version = "0.1", features = ["extended"], optional = true }
 
 [features]
 # Define these features inside the codegen crate
@@ -23,4 +25,4 @@ use_cranelift = [
     "dep:target-lexicon"
 ]
 # Define just to run performance tests with mimalloc
-use_mimalloc = ["dep:mimalloc"]
+use_mimalloc = ["dep:mimalloc","dep:libmimalloc-sys"]

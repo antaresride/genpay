@@ -1,7 +1,7 @@
 mod expressions;
-pub use expressions::Expr;
+pub use expressions::Expressions;
 mod statement;
-pub use statement::Stmt;
+pub use statement::Statements;
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right

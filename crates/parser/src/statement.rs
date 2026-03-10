@@ -1,7 +1,7 @@
-use crate::expressions::Expr;
-pub enum Stmt {
-    VariableDecl { name: String, value: Expr },
-    Assignment { name: String, value: Expr },
-    Return(Expr),
-    Block(Vec<Stmt>),
+use crate::expressions::Expressions;
+pub enum Statements {
+    VariableDecl { name: String, value: Expressions },
+    Assignment { name: String, value: Expressions },
+    Return(Expressions),
+    Block(Vec<Statements>),
 }

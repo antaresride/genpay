@@ -5,7 +5,7 @@ use target_lexicon::Triple;
 pub fn identify_architecture_aarch64() -> String {
     Triple::host().to_string()
 }
-
+#[cfg(feature = "use_cranelift")]
 #[cfg(test)]
 mod tests {
     use super::*;

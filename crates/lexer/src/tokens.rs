@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq)]
 pub enum Token {
     Keyword(Keyword),
     Identifier(Identifier), // Carries the 10-char fixed-size struct
@@ -15,16 +15,17 @@ impl fmt::Display for Identifier {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq)]
 pub enum Literal {
     Int(i64),
     Float(f64),
+    //todo: Analyse if Cow of str could be better
     String(String), // For "text inside quotes"
     Char(char),     // For 'a'
     Bool(bool),     // For true/false
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq)]
 pub struct Identifier {
     pub data: [u8; 10],
     pub len: usize,

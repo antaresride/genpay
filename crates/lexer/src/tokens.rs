@@ -1,17 +1,15 @@
+use std::fmt;
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     Keyword(Keyword),
-    Identifier,
+    Identifier(Identifier), // Carries the 10-char fixed-size struct
     Symbol(Symbol),
 }
 
-impl Identifier {
-    pub fn try_from_str(s: &str) -> Result<Self, &str> {
-        if s.len() > 10 {
-            return Err("Identifier exceeds 10 characters");
-        }
-        let mut data = [0u8; 10];
-        data[..s.len()].copy_from_slice(s.as_bytes());
-        Ok(Identifier { data, len: s.len() })
+impl fmt::Display for Identifier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
     }
 }
 
@@ -20,7 +18,25 @@ pub struct Identifier {
     pub data: [u8; 10],
     pub len: usize,
 }
-#[derive(Debug, PartialEq)]
+
+impl Identifier {
+    // Return &'static str for the literal error message
+    pub fn try_from_str(s: &str) -> Result<Self, &'static str> {
+        if s.len() > 10 {
+            return Err("Identifier exceeds 10 characters");
+        }
+        let mut data = [0u8; 10];
+        data[..s.len()].copy_from_slice(s.as_bytes());
+        Ok(Identifier { data, len: s.len() })
+    }
+
+    pub fn as_str(&self) -> &str {
+        // Safe because we validated the input in try_from_str
+        std::str::from_utf8(&self.data[..self.len]).unwrap()
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Keyword {
     If,
     Else,
@@ -30,6 +46,7 @@ pub enum Keyword {
     Fn,
     Return,
 }
+
 impl Keyword {
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
@@ -44,7 +61,8 @@ impl Keyword {
         }
     }
 }
-#[derive(Debug, PartialEq)]
+
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Symbol {
     Plus,
     Minus,
@@ -75,13 +93,16 @@ impl Symbol {
         }
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn lookup_keyword_test() {
         assert_eq!(Keyword::from_str("if"), Some(Keyword::If));
     }
+
     #[test]
     fn lookup_symbol_test() {
         assert_eq!(Symbol::from_char('/'), Some(Symbol::Divide));
@@ -91,7 +112,13 @@ mod tests {
     fn identifier_exceeds_characters_test() {
         assert_eq!(
             Identifier::try_from_str("letletleltleltlet"),
-            (Err("Identifier exceeds 10 characters"))
+            Err("Identifier exceeds 10 characters")
         );
+    }
+
+    #[test]
+    fn identifier_display_test() {
+        let id = Identifier::try_from_str("my_var").unwrap();
+        assert_eq!(format!("{}", id), "my_var");
     }
 }

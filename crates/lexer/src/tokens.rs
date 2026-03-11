@@ -5,12 +5,23 @@ pub enum Token {
     Keyword(Keyword),
     Identifier(Identifier), // Carries the 10-char fixed-size struct
     Symbol(Symbol),
+    Literal(Literal),
+    EOF, // Standard "stop" signal
 }
 
 impl fmt::Display for Identifier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.as_str())
     }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Literal {
+    Int(i64),
+    Float(f64),
+    String(String), // For "text inside quotes"
+    Char(char),     // For 'a'
+    Bool(bool),     // For true/false
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]

@@ -5,8 +5,9 @@ pub use statements::Statements;
 
 #[cfg(test)]
 #[cfg(feature = "use_arena")]
+#[allow(dead_code)]
 mod arena_benchmarks {
-    use super::*;
+    // use super::*;
     use bumpalo::Bump;
     use std::time::Instant;
 
@@ -16,11 +17,11 @@ mod arena_benchmarks {
         Add(&'a Expression<'a>, &'a Expression<'a>),
     }
 
-    fn build_large_tree_standard(depth: u32) -> Box<Expression<'static>> {
+    /*  fn build_large_tree_standard(depth: u32) -> Box<Expression<'static>> {
         // Note: Standard Box allocation for recursive types
         // (Simplified for illustration; true recursive Boxed enums require more boilerplate)
         unimplemented!("Standard heap allocation is often 10-20x slower for this pattern")
-    }
+    }*/
 
     #[test]
     fn bench_bumpalo_speed() {

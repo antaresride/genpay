@@ -1,6 +1,18 @@
+[Latest Release]: https://github.com/antaresride/genpay/releases/latest
+<div align="center">
+  <picture>
+    <img src="https://github.com/antaresride/genpay/blob/main/assets/GenPayLogo.png" width="35%" />
+  </picture>
+  <div>
+    <h1>Genpay Programming Language</h1>
+    <i></i>
+  </div>
+  <br/> 
+</div>
+
 ## Description
 **Genpay** - a statically-typed compiling programming language for smart contracts and system tools. <br><br>
-
+See official documentation here: [Genpay Documentation](https://genpay-site.vercel.app/)
 ##  Features
 *  **Powerful**. The language syntax is easy to read and write.
 *  **Fast**. The compiler uses LLVM as a backend generating WASM, Binary and LLVM-IR.

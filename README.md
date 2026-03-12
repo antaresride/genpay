@@ -23,3 +23,4 @@
 - `semantic` - Recursively checks the AST for type and principle matching.
 - `codegen` - Recursively compiles the AST.
 - `linker` -  Compiles the module to differents objects file and links it.
+- `syntax` - Implements a Single-Pass Zero-Copy Lexical Analyzer using Reference Counting.

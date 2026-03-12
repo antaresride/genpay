@@ -1,5 +1,5 @@
-mod shared_types;
+mod syntax;
 mod tokens;
 pub use Token::Identifier;
-pub use shared_types::SpannedToken;
+pub use syntax::SpannedToken;
 pub use tokens::Token;

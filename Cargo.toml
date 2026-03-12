@@ -10,7 +10,7 @@ parser = { path = "crates/parser" }
 semantic = { path = "crates/semantic" }
 codegen = { path = "crates/codegen" }
 linker = { path = "crates/linker" }
-shared = { path = "crates/shared" }
+syntax = { path = "crates/syntax" }
 # The root binary crate can then use it optionally
 # Make them optional so they don't compile unless asked
 inkwell = { workspace = true, optional = true }
@@ -52,7 +52,7 @@ members = [
     "crates/semantic",
     "crates/codegen",
     "crates/linker",
-    "crates/shared"
+    "crates/syntax"
 ]
 resolver = "3"
 

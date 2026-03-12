@@ -1,54 +1,50 @@
+use std::borrow::Cow;
 use std::fmt;
 
 #[derive(Debug, PartialEq)]
-pub enum Token {
+pub enum Token<'a> {
     Keyword(Keyword),
-    Identifier(Identifier), // Carries the 10-char fixed-size struct
+    Identifier(Identifier<'a>), // Carries the 10-char fixed-size struct
     Symbol(Symbol),
-    Literal(Literal),
+    Literal(Literal<'a>),
     EOF, // Standard "stop" signal
 }
 
-impl fmt::Display for Identifier {
+impl<'a> fmt::Display for Identifier<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.as_str())
     }
 }
-
 #[derive(Debug, PartialEq)]
-pub enum Literal {
+pub enum Literal<'a> {
     Int(i64),
     Float(f64),
-    //todo: Analyse if Cow of str could be better
-    String(String), // For "text inside quotes"
-    Char(char),     // For 'a'
-    Bool(bool),     // For true/false
+    Str(&'a str), // For "text inside quotes"
+    Char(char),   // For 'a'
+    Bool(bool),   // For true/false
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Identifier {
-    pub data: [u8; 10],
-    pub len: usize,
+pub struct Identifier<'a> {
+    pub name: Cow<'a, str>,
 }
 
-impl Identifier {
-    // Return &'static str for the literal error message
-    pub fn try_from_str(s: &str) -> Result<Self, &'static str> {
+impl<'a> Identifier<'a> {
+    pub fn try_from_str(s: &'a str) -> Result<Self, &'static str> {
         if s.len() > 10 {
             return Err("Identifier exceeds 10 characters");
         }
-        let mut data = [0u8; 10];
-        data[..s.len()].copy_from_slice(s.as_bytes());
-        Ok(Identifier { data, len: s.len() })
+        Ok(Identifier {
+            name: Cow::Borrowed(s),
+        })
     }
 
     pub fn as_str(&self) -> &str {
-        // Safe because we validated the input in try_from_str
-        std::str::from_utf8(&self.data[..self.len]).unwrap()
+        &self.name
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq)]
 pub enum Keyword {
     If,
     Else,
@@ -74,7 +70,7 @@ impl Keyword {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq)]
 pub enum Symbol {
     Plus,
     Minus,

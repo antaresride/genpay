@@ -4,3 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+# Point to the shared crate relative to this file
+shared = { path = "../shared" }

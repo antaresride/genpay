@@ -1,18 +1,25 @@
+use std::{fs, io};
+
 #[derive(Debug, Default)]
 #[allow(dead_code)]
-pub struct Lexer {
-    input: Vec<char>,
+pub struct Lexer<'a> {
+    input:&'a[syntax::Token<'a>],
     pos: usize,
 }
-impl Lexer {
+impl <'a>Lexer<'a> {
     pub fn new() -> Self {
         Self {
-            input: Vec::new(),
+            //input: Vec::new(),
+            input:&[],
             pos: 0,
         }
     }
-    // it will return  Result
-    pub fn file_reader(file: &'static str) -> &'static str {
+    // Reads a file from disk and returns the string or an error
+    pub fn file_reader(path: &'a str) ->io::Result<String> {
+        fs::read_to_string(path)
+    }
+
+    pub fn read_from_slices(file: &'a str)->&'a str{
         file
     }
 }
@@ -23,7 +30,11 @@ mod tests {
 
     #[test]
     fn lexer_creation_test() {
+        let file = "../../a.pay";
         let source = "let x = 10f;";
-        let _ = Lexer::file_reader(source);
+        let reader = Lexer::file_reader(file);
+        let content = reader.expect("Failed to read file - check if the path is correct");
+        println!("File read successfully! Content: {:?}", content);
+        Lexer::read_from_slices(source);
     }
 }

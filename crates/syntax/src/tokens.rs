@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, str::FromStr};
 
 #[derive(Debug, PartialEq)]
 pub enum Token<'a> {
@@ -48,17 +48,19 @@ pub enum Keyword {
     Return,
 }
 
-impl Keyword {
-    pub fn from_str(s: &str) -> Option<Self> {
+impl FromStr for Keyword {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "if" => Some(Keyword::If),
-            "else" => Some(Keyword::Else),
-            "while" => Some(Keyword::While),
-            "for" => Some(Keyword::For),
-            "let" => Some(Keyword::Let),
-            "fn" => Some(Keyword::Fn),
-            "return" => Some(Keyword::Return),
-            _ => None,
+            "if" => Ok(Keyword::If),
+            "else" => Ok(Keyword::Else),
+            "while" => Ok(Keyword::While),
+            "for" => Ok(Keyword::For),
+            "let" => Ok(Keyword::Let),
+            "fn" => Ok(Keyword::Fn),
+            "return" => Ok(Keyword::Return),
+            _ => Err(()),
         }
     }
 }
@@ -101,7 +103,7 @@ mod tests {
 
     #[test]
     fn lookup_keyword_test() {
-        assert_eq!(Keyword::from_str("if"), Some(Keyword::If));
+        assert_eq!(Keyword::from_str("if").ok(), Some(Keyword::If));
     }
 
     #[test]

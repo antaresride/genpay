@@ -1,11 +1,11 @@
 mod syntax;
 mod tokens;
 pub use Token::Identifier;
-pub use syntax::SpannedToken;
-pub use tokens::Token;
-pub use tokens::Keyword;
 pub use Token::Key;
-pub use tokens::Identifier as Data;
-pub use tokens::Symbol;
 pub use Token::*;
+pub use syntax::SpannedToken;
+pub use tokens::Identifier as Data;
+pub use tokens::Keyword;
 pub use tokens::Literal;
+pub use tokens::Symbol;
+pub use tokens::Token;

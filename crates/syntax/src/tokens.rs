@@ -33,12 +33,8 @@ impl<'a> Identifier<'a> {
         if s.len() > 10 {
             return Err("Identifier exceeds 10 characters");
         }
-        Ok(Identifier {
-            name: s,
-        })
+        Ok(Identifier { name: s })
     }
-
-
 }
 
 #[derive(Debug, PartialEq)]

@@ -3,20 +3,19 @@ pub use expressions::Expressions;
 mod statements;
 pub use statements::Statements;
 
-pub fn mock_parse_declaration(){
+pub fn mock_parse_declaration() {
     // Source: let x = 100;
     // Explicitly use the struct from the syntax module
-     let tokens:&[syntax::Token<'_>] = &[
-
+    let tokens: &[syntax::Token<'_>] = &[
         syntax::Key(syntax::Keyword::Let),
-        syntax::Token::Identifier(syntax::Data::try_from_str("x").expect("Failed to create identication")),
+        syntax::Token::Identifier(
+            syntax::Data::try_from_str("x").expect("Failed to create identication"),
+        ),
         syntax::Symb(syntax::Symbol::Equal),
         syntax::Lit(syntax::Literal::Int(100)),
-
     ];
     //assert!(tokens[0],"let");
-    println!("{:?} Printing the tokens ",tokens);
-
+    println!("{:?} Printing the tokens ", tokens);
 }
 
 #[cfg(test)]
@@ -57,19 +56,18 @@ mod arena_benchmarks {
         // No individual 'Drop' calls for the 1M nodes.
     }
     #[test]
-    fn mock_parse_declaration(){
+    fn mock_parse_declaration() {
         // Source: let x = 100;
         // Explicitly use the struct from the syntax module
-         let tokens:&[syntax::Token<'_>] = &[
-
+        let tokens: &[syntax::Token<'_>] = &[
             syntax::Key(syntax::Keyword::Let),
-            syntax::Token::Identifier(syntax::Data::try_from_str("x").expect("Failed to create identication")),
+            syntax::Token::Identifier(
+                syntax::Data::try_from_str("x").expect("Failed to create identication"),
+            ),
             syntax::Symb(syntax::Symbol::Equal),
             syntax::Lit(syntax::Literal::Int(100)),
-
         ];
         //assert!(tokens[0],"let");
-        println!("{:?} Printing the tokens ",tokens);
-
+        println!("{:?} Printing the tokens ", tokens);
     }
 }

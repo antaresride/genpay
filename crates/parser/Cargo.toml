@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 bumpalo = { workspace = true, optional = true }
+syntax = { path = "../syntax" }
 
 [features]
 use_arena = ["dep:bumpalo"]

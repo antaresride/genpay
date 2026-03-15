@@ -1,18 +1,17 @@
-use std::borrow::Cow;
 use std::fmt;
 
 #[derive(Debug, PartialEq)]
 pub enum Token<'a> {
-    Keyword(Keyword),
+    Key(Keyword),
     Identifier(Identifier<'a>), // Carries the 10-char fixed-size struct
-    Symbol(Symbol),
-    Literal(Literal<'a>),
+    Symb(Symbol),
+    Lit(Literal<'a>),
     EOF, // Standard "stop" signal
 }
 
 impl<'a> fmt::Display for Identifier<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.as_str())
+        write!(f, "{}", self.name)
     }
 }
 #[derive(Debug, PartialEq)]
@@ -26,7 +25,7 @@ pub enum Literal<'a> {
 
 #[derive(Debug, PartialEq)]
 pub struct Identifier<'a> {
-    pub name: Cow<'a, str>,
+    pub name: &'a str,
 }
 
 impl<'a> Identifier<'a> {
@@ -35,13 +34,11 @@ impl<'a> Identifier<'a> {
             return Err("Identifier exceeds 10 characters");
         }
         Ok(Identifier {
-            name: Cow::Borrowed(s),
+            name: s,
         })
     }
 
-    pub fn as_str(&self) -> &str {
-        &self.name
-    }
+
 }
 
 #[derive(Debug, PartialEq)]

@@ -42,7 +42,8 @@ use_arena = ["dep:bumpalo", "parser/use_arena"]
 # Optional: Set a default backend
 # default = ["llvm"]
 # Gate control, opening for these features
-default = ["use_cranelift", "use_arena","use_llvm","use_mimalloc" ]
+# default = ["use_cranelift", "use_arena","use_llvm","use_mimalloc" ]
+ default = ["use_arena"]
 
 
 [workspace]

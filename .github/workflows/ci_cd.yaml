@@ -2,7 +2,7 @@ name: CI & Release
 
 on:
     push:
-        branches: ["main"]
+        branches: ["main", feature-parser]
         tags: ["v*"]
     pull_request:
         branches: ["main"]

@@ -1,16 +1,20 @@
 use std::{fs, io};
+use std::iter::Peekable;
+use std::str::Chars;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 #[allow(dead_code)]
 pub struct Lexer<'a> {
-    input:&'a[syntax::Token<'a>],
+    // The iterator points directly to the heap memory owned by your 'content' String
+    chars: Peekable<Chars<'a>>,
     pos: usize,
 }
 impl <'a>Lexer<'a> {
-    pub fn new() -> Self {
+    pub fn new(source: &'a str) -> Self {
         Self {
             //input: Vec::new(),
-            input:&[],
+            // The iterator points directly to the heap memory owned by your 'content' String
+            chars: source.chars().peekable(),
             pos: 0,
         }
     }

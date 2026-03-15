@@ -12,7 +12,6 @@ pub struct Lexer<'a> {
 impl <'a>Lexer<'a> {
     pub fn new(source: &'a str) -> Self {
         Self {
-            //input: Vec::new(),
             // The iterator points directly to the heap memory owned by your 'content' String
             chars: source.chars().peekable(),
             pos: 0,

@@ -33,7 +33,7 @@ cmake -G Ninja \
   -DLLVM_ENABLE_LIBXML2=OFF \
   -DLLVM_ENABLE_TERMINFO=OFF
 
-# Build - this takes 30-90 minutes depending on your machine
+# Build 
 ninja
 
 # Install to the prefix directory

@@ -1,0 +1,63 @@
+xcode-select --install
+
+# Create working directory
+mkdir -p ~/llvm-build && cd ~/llvm-build
+
+# Clone LLVM 21.1.0 (or latest 21.x release)
+git clone --depth 1 --branch llvmorg-21.1.0 https://github.com/llvm/llvm-project.git
+cd llvm-project
+
+# Create build directory
+mkdir build && cd build
+
+# Configure with CMake - optimized for Inkwell 0.8.0 / llvm-sys 211
+cmake -G Ninja \
+  -S ../llvm \
+  -B . \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX=$HOME/llvm-21 \
+  -DCMAKE_OSX_ARCHITECTURES=arm64 \
+  -DCMAKE_C_COMPILER=$(which clang) \
+  -DCMAKE_CXX_COMPILER=$(which clang++) \
+  -DDEFAULT_SYSROOT="$(xcrun --show-sdk-path)" \
+  -DLLVM_DEFAULT_TARGET_TRIPLE=arm64-apple-darwin \
+  -DLLVM_TARGETS_TO_BUILD="AArch64;X86;ARM;WebAssembly" \
+  -DLLVM_ENABLE_PROJECTS="clang;lld" \
+  -DLLVM_ENABLE_ASSERTIONS=ON \
+  -DLLVM_ENABLE_RTTI=ON \
+  -DLLVM_ENABLE_EH=ON \
+  -DLLVM_BUILD_LLVM_DYLIB=ON \
+  -DLLVM_LINK_LLVM_DYLIB=ON \
+  -DLLVM_INSTALL_UTILS=ON \
+  -DLLVM_ENABLE_ZLIB=OFF \
+  -DLLVM_ENABLE_LIBXML2=OFF \
+  -DLLVM_ENABLE_TERMINFO=OFF
+
+# Build - this takes 30-90 minutes depending on your machine
+ninja
+
+# Install to the prefix directory
+ninja install
+
+#~/.zshrc or ~/.bash_profile
+
+# LLVM 21 for GenPay / Inkwell 0.8.0 / llvm-sys 211
+export LLVM_SYS_211_PREFIX=$HOME/llvm-21
+export PATH=$HOME/llvm-21/bin:$PATH
+export DYLD_LIBRARY_PATH=$HOME/llvm-21/lib:$DYLD_LIBRARY_PATH
+export LIBRARY_PATH=$HOME/llvm-21/lib:$LIBRARY_PATH
+
+source ~/.zshrc
+
+# Check version
+llvm-config --version  # Should show 21.1.0 or similar
+
+# Verify llvm-config is found and working
+which llvm-config
+
+# Check that RTTI is enabled (required for Inkwell)
+llvm-config --has-rtti  # Should print "YES"
+
+# Verify libraries are available
+llvm-config --libs
+llvm-config --ldflags

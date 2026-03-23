@@ -11,39 +11,6 @@ semantic = { path = "crates/semantic" }
 codegen = { path = "crates/codegen" }
 linker = { path = "crates/linker" }
 syntax = { path = "crates/syntax" }
-# The root binary crate can then use it optionally
-# Make them optional so they don't compile unless asked
-inkwell = { workspace = true, optional = true }
-llvm-sys = { workspace = true, optional = true }
-cranelift-codegen = { workspace = true, optional = true }
-cranelift-module = { workspace = true, optional = true }
-cranelift-object = { workspace = true, optional = true }
-target-lexicon = { workspace = true, optional = true }
-mimalloc = { workspace = true, optional = true }
-bumpalo = { workspace = true, optional = true }
-
-[features]
-# Create high-level features for each backend
-# could be configured  "codegen/use_llvm as it was configured in use_cranelift"
-use_llvm = ["dep:inkwell", "dep:llvm-sys"]
-# When 'use_cranelift' is active here, it turns it on in codegen and linker
-use_cranelift = [
-    "dep:cranelift-codegen",
-    "codegen/use_cranelift",
-    "dep:cranelift-module",
-    "dep:cranelift-object",
-    "dep:target-lexicon"
-]
-# Optional: allow enabling mimalloc via a flag
-# default = ["use_mimalloc"]
-use_mimalloc = ["dep:mimalloc"]
-use_arena = ["dep:bumpalo", "parser/use_arena"]
-
-# Optional: Set a default backend
-# default = ["llvm"]
-# Gate control, opening for these features
-# default = ["use_cranelift", "use_arena","use_llvm","use_mimalloc" ]
- default = ["use_arena"]
 
 
 [workspace]
@@ -58,16 +25,3 @@ members = [
 resolver = "3"
 
 [workspace.dependencies]
-cranelift-codegen = "0.129.1"
-target-lexicon = "0.13.5"
-# Add these for linking/module support
-cranelift-module = "0.129.1"
-cranelift-object = "0.129.1"
-# Inkwell version 0.8.0 is the current release as of early 2026
-# that officially supports LLVM 21.
-inkwell = { version = "0.8.0", features = ["llvm21-1"] }
-# If it need the raw C API bindings
-llvm-sys = "211.0.0"
-# The root binary crate can then use it optionally
-mimalloc = { version = "0.1.48", features=["secure"] }
-bumpalo = { version = "3.20.2" }

@@ -6,14 +6,14 @@ use std::{fs, io};
 #[allow(dead_code)]
 pub struct Lexer<'a> {
     // The iterator points directly to the heap memory owned by your 'content' String
-    chars: Peekable<Chars<'a>>,
+    iter_chars: Peekable<Chars<'a>>,
     pos: usize,
 }
 impl<'a> Lexer<'a> {
     pub fn new(source: &'a str) -> Self {
         Self {
             // The iterator points directly to the heap memory owned by your 'content' String
-            chars: source.chars().peekable(),
+            iter_chars: source.chars().peekable(),
             pos: 0,
         }
     }

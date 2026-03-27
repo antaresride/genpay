@@ -1,7 +1,6 @@
 use crate::expressions::Expressions;
+use crate::functions::Function;
 pub enum Statements {
-    VariableDecl { name: String, value: Expressions },
-    Assignment { name: String, value: Expressions },
-    Return(Expressions),
-    Block(Vec<Statements>),
+    Function,
+    Assignment,
 }

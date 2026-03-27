@@ -3,7 +3,6 @@ use std::str::Chars;
 use std::{fs, io};
 
 #[derive(Debug)]
-#[allow(dead_code)]
 pub struct Lexer<'a> {
     // The iterator points directly to the heap memory owned by your 'content' String
     iter_chars: Peekable<Chars<'a>>,

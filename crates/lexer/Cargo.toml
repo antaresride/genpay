@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 # Point to the shared crate relative to this file
 syntax = { path = "../syntax" }
+ariadne = { workspace = true }  #

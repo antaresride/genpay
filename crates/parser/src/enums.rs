@@ -1,1 +1,4 @@
-pub enum Enum {}
+
+pub struct Enum {
+    // id: Identifier(String),
+}

@@ -25,3 +25,4 @@ members = [
 resolver = "3"
 
 [workspace.dependencies]
+ariadne = "0.4"

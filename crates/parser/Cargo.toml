@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 syntax = { path = "../syntax" }
+ariadne = "0.4.1"

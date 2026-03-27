@@ -11,7 +11,7 @@
 </div>
 
 ## Description
-**Genpay** - a statically-typed compiling programming language for smart contracts and system tools. <br><br>
+**Genpay** - A programming language for smart contracts and agents. <br><br>
 See official documentation here: [Genpay Documentation](https://genpay-site.vercel.app/)
 ##  Features
 *  **Powerful**. The language syntax is easy to read and write.
@@ -21,9 +21,9 @@ See official documentation here: [Genpay Documentation](https://genpay-site.verc
 ## Technical Details
 - **Language:** Rust
 - **Build Systems:** Cargo
-- **Backend:** LLVM and Cranelift
-- **Errors:** thiserror
-- **Error Reporting:** miette, colored
+- **Backend:** LLVM or Cranelift
+- **Errors:** 
+- **Error Reporting:** ariadne
 - **Command Line Interface:** clap
 - **Arena Allocation:** bumpalo
 - **Memory Allocation:** mimalloc

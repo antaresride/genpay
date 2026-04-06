@@ -2,9 +2,9 @@ name: Build LLVM 21.1.0
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: ['.github/workflows/build-llvm.yml']
+  #push:
+    #branches: [main]
+    #paths: ['.github/workflows/build-llvm.yml']
 
 env:
   LLVM_VERSION: 21.1.0

@@ -1,4 +1,5 @@
-/*use ariadne::{Color, Label, Report, ReportKind, Source};
+use crate::Token; // Use the re-exports from your crate root
+use ariadne::{Color, Label, Report, ReportKind, Source};
 
 pub fn report_error(filename: &str, source: &str, msg: &str, token: &Token) {
     let (start, end) = token.span();
@@ -17,18 +18,23 @@ pub fn report_error(filename: &str, source: &str, msg: &str, token: &Token) {
         .print((filename, Source::from(source)))
         .unwrap_or_else(|e| eprintln!("Failed to print error report: {}", e));
 }
+#[cfg(test)]
+mod tests {
+    use super::*; // Pulls in report_error and Token
+    use crate::Keyword; // Pull in Keyword specifically for the tests
 
-#[test]
-fn ariade_report() {
-    let source = "let x = 42";
-    let token = Token::Key(Keyword::Let, 0, 3);
-    report_error("main.gp", source, "unexpected keyword here", &token);
-}
+    #[test]
+    fn ariade_report() {
+        let source = "let x = 42";
+        // Arguments match: (Keyword, &str, start, end)
+        let token = Token::Keyword(Keyword::Let, "let", 0, 3);
+        report_error("main.gp", source, "unexpected keyword here", &token);
+    }
 
-#[test]
-fn end_of_line_report() {
-    let source = "";
-    let token = Token::EOF(0);
-    report_error("main.gp", source, "unexpected keyword here", &token);
+    #[test]
+    fn end_of_line_report() {
+        let source = "";
+        let token = Token::EOF(0);
+        report_error("main.gp", source, "unexpected end of file", &token);
+    }
 }
-*/

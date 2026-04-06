@@ -60,7 +60,7 @@ impl FromStr for Keyword {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq)]
 pub enum Symbol {
     Plus,
     Minus,

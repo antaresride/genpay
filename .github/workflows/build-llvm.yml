@@ -8,6 +8,8 @@ on:
 
 env:
   LLVM_VERSION: 21.1.0
+  LLVM_BUILD_DIR: ${{ github.workspace }}/llvm-build
+  LLVM_INSTALL_DIR: ${{ github.workspace }}/llvm-21
 
 jobs:
   build-macos:
@@ -19,38 +21,34 @@ jobs:
           xcrun --show-sdk-path
           clang --version
 
-      - name: Install minimal dependencies (no brew LLVM)
+      - name: Install minimal dependencies
         run: |
-          # Install only build tools, NOT llvm/zstd from brew
           brew install ninja cmake || true
-          
-          # Ensure we use system clang, not brew's
           which clang
           clang --version
 
       - name: Create working directory
         run: |
-          mkdir -p ~/llvm-build && cd ~/llvm-build
-          pwd
+          mkdir -p ${{ env.LLVM_BUILD_DIR }}
+          echo "Build directory: ${{ env.LLVM_BUILD_DIR }}"
 
       - name: Clone LLVM
-        working-directory: ~/llvm-build
+        working-directory: ${{ env.LLVM_BUILD_DIR }}
         run: |
           git clone --depth 1 --branch llvmorg-${{ env.LLVM_VERSION }} https://github.com/llvm/llvm-project.git
           cd llvm-project
           echo "LLVM commit: $(git rev-parse HEAD)"
 
       - name: Configure with CMake
-        working-directory: ~/llvm-build/llvm-project
+        working-directory: ${{ env.LLVM_BUILD_DIR }}/llvm-project
         run: |
           mkdir build && cd build
           
-          # Use ONLY system tools, explicitly disable all external libs
           cmake -G Ninja \
             -S ../llvm \
             -B . \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX=$HOME/llvm-21 \
+            -DCMAKE_INSTALL_PREFIX=${{ env.LLVM_INSTALL_DIR }} \
             -DCMAKE_OSX_ARCHITECTURES=arm64 \
             -DCMAKE_C_COMPILER=/usr/bin/clang \
             -DCMAKE_CXX_COMPILER=/usr/bin/clang++ \
@@ -71,67 +69,72 @@ jobs:
             -DLLVM_ENABLE_LIBEDIT=OFF \
             -DLLVM_ENABLE_LIBPFM=OFF \
             -DLLVM_ENABLE_CURL=OFF \
-            -DLLVM_ENABLE_HTTPLIB=OFF \
-            -DCLANG_DEFAULT_LINKER=lld \
-            -DLLVM_INSTALL_TOOLCHAIN_ONLY=ON
+            -DLLVM_ENABLE_HTTPLIB=OFF
 
       - name: Build
-        working-directory: ~/llvm-build/llvm-project/build
+        working-directory: ${{ env.LLVM_BUILD_DIR }}/llvm-project/build
         run: ninja
 
       - name: Install
-        working-directory: ~/llvm-build/llvm-project/build
+        working-directory: ${{ env.LLVM_BUILD_DIR }}/llvm-project/build
         run: ninja install
 
-      - name: Verify portability (no external deps)
+      - name: Verify portability
         run: |
           echo "=== Checking for external dependencies ==="
           
-          # Check llvm-config doesn't link to /opt/homebrew
-          otool -L ~/llvm-21/bin/llvm-config | grep -v "^\s*/usr/lib" | grep -v "^\s*/System" | grep -v "^\s*@rpath" || echo "Clean: No external deps"
-          
-          # Should NOT find /opt/homebrew references
-          if otool -L ~/llvm-21/bin/llvm-config | grep -q "/opt/homebrew"; then
+          if otool -L ${{ env.LLVM_INSTALL_DIR }}/bin/llvm-config | grep -q "/opt/homebrew"; then
             echo "ERROR: Found Homebrew dependencies!"
-            otool -L ~/llvm-21/bin/llvm-config
+            otool -L ${{ env.LLVM_INSTALL_DIR }}/bin/llvm-config
             exit 1
           fi
           
           echo "=== Testing llvm-config ==="
-          ~/llvm-21/bin/llvm-config --version
-          ~/llvm-21/bin/llvm-config --has-rtti
+          ${{ env.LLVM_INSTALL_DIR }}/bin/llvm-config --version
+          ${{ env.LLVM_INSTALL_DIR }}/bin/llvm-config --has-rtti
 
-      - name: Strip metadata and package
+      - name: Remove quarantine attributes and package
         run: |
-          # Strip extended attributes
-          xattr -r -c ~/llvm-21/
+          echo "=== Removing quarantine attributes from llvm-21 ==="
+          
+          # Remove com.apple.quarantine attribute recursively from the directory
+          xattr -r -d com.apple.quarantine ${{ env.LLVM_INSTALL_DIR }} || echo "No quarantine attributes found"
+          
+          # Also clear all other extended attributes to be safe
+          xattr -r -c ${{ env.LLVM_INSTALL_DIR }} || true
+          
+          # Verify attributes are removed
+          echo "=== Checking remaining attributes ==="
+          xattr ${{ env.LLVM_INSTALL_DIR }} || echo "No extended attributes on llvm-21"
           
           # Create tarball
-          cd ~
+          cd ${{ github.workspace }}
           tar czf llvm-21-macos-arm64.tar.gz llvm-21/
-          ls -lh llvm-21-macos-arm64.tar.gz
           
-          # Verify tarball
-          tar tzf llvm-21-macos-arm64.tar.gz | head -20
+          echo "=== Tarball created ==="
+          ls -lh llvm-21-macos-arm64.tar.gz
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: llvm-21-macos-arm64
-          path: ~/llvm-21-macos-arm64.tar.gz
+          path: ${{ github.workspace }}/llvm-21-macos-arm64.tar.gz
 
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/llvm-')
         uses: softprops/action-gh-release@v1
         with:
-          files: ~/llvm-21-macos-arm64.tar.gz
+          files: ${{ github.workspace }}/llvm-21-macos-arm64.tar.gz
           name: LLVM ${{ env.LLVM_VERSION }} macOS ARM64
           body: |
             Self-contained LLVM build for macOS ARM64.
             
             Requires only: `xcode-select --install`
             
-            No Homebrew dependencies.
+            **Note:** If you see "Apple cannot check it for malicious software", run:
+            ```bash
+            xattr -r -d com.apple.quarantine llvm-21
+            ```
             
             Environment setup:
             ```bash

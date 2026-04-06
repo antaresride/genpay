@@ -1,4 +1,1 @@
-pub enum Statements {
-    Function,
-    Assignment,
-}
+pub enum Statements {}

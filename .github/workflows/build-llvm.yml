@@ -93,25 +93,10 @@ jobs:
           ${{ env.LLVM_INSTALL_DIR }}/bin/llvm-config --version
           ${{ env.LLVM_INSTALL_DIR }}/bin/llvm-config --has-rtti
 
-      - name: Remove quarantine attributes and package
+      - name: Package
         run: |
-          echo "=== Removing quarantine attributes from llvm-21 ==="
-          
-          # Remove com.apple.quarantine attribute recursively from the directory
-          xattr -r -d com.apple.quarantine ${{ env.LLVM_INSTALL_DIR }} || echo "No quarantine attributes found"
-          
-          # Also clear all other extended attributes to be safe
-          xattr -r -c ${{ env.LLVM_INSTALL_DIR }} || true
-          
-          # Verify attributes are removed
-          echo "=== Checking remaining attributes ==="
-          xattr ${{ env.LLVM_INSTALL_DIR }} || echo "No extended attributes on llvm-21"
-          
-          # Create tarball
           cd ${{ github.workspace }}
           tar czf llvm-21-macos-arm64.tar.gz llvm-21/
-          
-          echo "=== Tarball created ==="
           ls -lh llvm-21-macos-arm64.tar.gz
 
       - name: Upload artifact
@@ -127,19 +112,57 @@ jobs:
           files: ${{ github.workspace }}/llvm-21-macos-arm64.tar.gz
           name: LLVM ${{ env.LLVM_VERSION }} macOS ARM64
           body: |
-            Self-contained LLVM build for macOS ARM64.
+            Self-contained LLVM build for macOS ARM64 (Apple Silicon).
             
-            Requires only: `xcode-select --install`
+            ## Requirements
             
-            **Note:** If you see "Apple cannot check it for malicious software", run:
+            Only **Xcode Command Line Tools** required:
             ```bash
-            xattr -r -d com.apple.quarantine llvm-21
+            xcode-select --install
             ```
             
-            Environment setup:
+            ## Installation
+            
             ```bash
+            # Download and extract
+            tar xzf llvm-21-macos-arm64.tar.gz -C ~
+            
+            # IMPORTANT: Remove quarantine attributes (macOS Gatekeeper)
+            xattr -r -d com.apple.quarantine ~/llvm-21
+            
+            # Setup environment (add to ~/.zshrc or ~/.bash_profile)
             export LLVM_SYS_211_PREFIX=$HOME/llvm-21
             export PATH=$LLVM_SYS_211_PREFIX/bin:$PATH
             export DYLD_LIBRARY_PATH=$LLVM_SYS_211_PREFIX/lib:$DYLD_LIBRARY_PATH
             export LIBRARY_PATH=$LLVM_SYS_211_PREFIX/lib:$LIBRARY_PATH
+            
+            # Verify installation
+            llvm-config --version      # Should show 21.1.0
+            llvm-config --has-rtti     # Should print "YES"
             ```
+            
+            ## Troubleshooting
+            
+            **"Apple cannot check it for malicious software"**
+            
+            Run the quarantine removal command:
+            ```bash
+            xattr -r -d com.apple.quarantine ~/llvm-21
+            ```
+            
+            Or bypass for single execution:
+            ```bash
+            xattr -d com.apple.quarantine ~/llvm-21/bin/llvm-config
+            ~/llvm-21/bin/llvm-config --version
+            ```
+            
+            ## Build Configuration
+            
+            - Targets: AArch64, X86, ARM, WebAssembly
+            - Projects: clang, lld
+            - RTTI: Enabled (required for Inkwell)
+            - Assertions: Enabled
+            - DyLib: Enabled
+            - No external dependencies (no Homebrew libs)
+            
+            Optimized for: **Inkwell 0.8.0** / **llvm-sys 211** / **GenPay**

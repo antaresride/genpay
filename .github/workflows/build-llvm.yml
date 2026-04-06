@@ -1,9 +1,7 @@
-name: Build LLVM 21.1.0
+name: Build LLVM 21.1.0 (xcode-select compatible)
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 0 * * 0'  # Weekly rebuild
   push:
     branches: [main]
     paths: ['.github/workflows/build-llvm.yml']
@@ -15,26 +13,47 @@ jobs:
   build-macos:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Verify Xcode Command Line Tools
+        run: |
+          xcode-select -p
+          xcrun --show-sdk-path
+          clang --version
 
-      - name: Install dependencies
-        run: brew install ninja cmake
+      - name: Install minimal dependencies (no brew LLVM)
+        run: |
+          # Install only build tools, NOT llvm/zstd from brew
+          brew install ninja cmake || true
+          
+          # Ensure we use system clang, not brew's
+          which clang
+          clang --version
 
-      - name: Build LLVM
+      - name: Create working directory
         run: |
           mkdir -p ~/llvm-build && cd ~/llvm-build
+          pwd
+
+      - name: Clone LLVM
+        working-directory: ~/llvm-build
+        run: |
           git clone --depth 1 --branch llvmorg-${{ env.LLVM_VERSION }} https://github.com/llvm/llvm-project.git
           cd llvm-project
+          echo "LLVM commit: $(git rev-parse HEAD)"
+
+      - name: Configure with CMake
+        working-directory: ~/llvm-build/llvm-project
+        run: |
           mkdir build && cd build
           
+          # Use ONLY system tools, explicitly disable all external libs
           cmake -G Ninja \
             -S ../llvm \
             -B . \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX=$HOME/llvm-21 \
             -DCMAKE_OSX_ARCHITECTURES=arm64 \
-            -DCMAKE_C_COMPILER=$(which clang) \
-            -DCMAKE_CXX_COMPILER=$(which clang++) \
+            -DCMAKE_C_COMPILER=/usr/bin/clang \
+            -DCMAKE_CXX_COMPILER=/usr/bin/clang++ \
             -DDEFAULT_SYSROOT="$(xcrun --show-sdk-path)" \
             -DLLVM_DEFAULT_TARGET_TRIPLE=arm64-apple-darwin \
             -DLLVM_TARGETS_TO_BUILD="AArch64;X86;ARM;WebAssembly" \
@@ -46,17 +65,54 @@ jobs:
             -DLLVM_LINK_LLVM_DYLIB=ON \
             -DLLVM_INSTALL_UTILS=ON \
             -DLLVM_ENABLE_ZLIB=OFF \
+            -DLLVM_ENABLE_ZSTD=OFF \
             -DLLVM_ENABLE_LIBXML2=OFF \
-            -DLLVM_ENABLE_TERMINFO=OFF
+            -DLLVM_ENABLE_TERMINFO=OFF \
+            -DLLVM_ENABLE_LIBEDIT=OFF \
+            -DLLVM_ENABLE_LIBPFM=OFF \
+            -DLLVM_ENABLE_CURL=OFF \
+            -DLLVM_ENABLE_HTTPLIB=OFF \
+            -DCLANG_DEFAULT_LINKER=lld \
+            -DLLVM_INSTALL_TOOLCHAIN_ONLY=ON
 
-          ninja
-          ninja install
+      - name: Build
+        working-directory: ~/llvm-build/llvm-project/build
+        run: ninja
 
-      - name: Package
+      - name: Install
+        working-directory: ~/llvm-build/llvm-project/build
+        run: ninja install
+
+      - name: Verify portability (no external deps)
         run: |
+          echo "=== Checking for external dependencies ==="
+          
+          # Check llvm-config doesn't link to /opt/homebrew
+          otool -L ~/llvm-21/bin/llvm-config | grep -v "^\s*/usr/lib" | grep -v "^\s*/System" | grep -v "^\s*@rpath" || echo "Clean: No external deps"
+          
+          # Should NOT find /opt/homebrew references
+          if otool -L ~/llvm-21/bin/llvm-config | grep -q "/opt/homebrew"; then
+            echo "ERROR: Found Homebrew dependencies!"
+            otool -L ~/llvm-21/bin/llvm-config
+            exit 1
+          fi
+          
+          echo "=== Testing llvm-config ==="
+          ~/llvm-21/bin/llvm-config --version
+          ~/llvm-21/bin/llvm-config --has-rtti
+
+      - name: Strip metadata and package
+        run: |
+          # Strip extended attributes
+          xattr -r -c ~/llvm-21/
+          
+          # Create tarball
           cd ~
           tar czf llvm-21-macos-arm64.tar.gz llvm-21/
           ls -lh llvm-21-macos-arm64.tar.gz
+          
+          # Verify tarball
+          tar tzf llvm-21-macos-arm64.tar.gz | head -20
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -64,8 +120,23 @@ jobs:
           name: llvm-21-macos-arm64
           path: ~/llvm-21-macos-arm64.tar.gz
 
-      - name: Release
+      - name: Create Release
         if: startsWith(github.ref, 'refs/tags/llvm-')
         uses: softprops/action-gh-release@v1
         with:
           files: ~/llvm-21-macos-arm64.tar.gz
+          name: LLVM ${{ env.LLVM_VERSION }} macOS ARM64
+          body: |
+            Self-contained LLVM build for macOS ARM64.
+            
+            Requires only: `xcode-select --install`
+            
+            No Homebrew dependencies.
+            
+            Environment setup:
+            ```bash
+            export LLVM_SYS_211_PREFIX=$HOME/llvm-21
+            export PATH=$LLVM_SYS_211_PREFIX/bin:$PATH
+            export DYLD_LIBRARY_PATH=$LLVM_SYS_211_PREFIX/lib:$DYLD_LIBRARY_PATH
+            export LIBRARY_PATH=$LLVM_SYS_211_PREFIX/lib:$LIBRARY_PATH
+            ```

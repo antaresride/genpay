@@ -1,0 +1,71 @@
+name: Build LLVM 21.1.0
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly rebuild
+  push:
+    branches: [main]
+    paths: ['.github/workflows/build-llvm.yml']
+
+env:
+  LLVM_VERSION: 21.1.0
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: brew install ninja cmake
+
+      - name: Build LLVM
+        run: |
+          mkdir -p ~/llvm-build && cd ~/llvm-build
+          git clone --depth 1 --branch llvmorg-${{ env.LLVM_VERSION }} https://github.com/llvm/llvm-project.git
+          cd llvm-project
+          mkdir build && cd build
+          
+          cmake -G Ninja \
+            -S ../llvm \
+            -B . \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=$HOME/llvm-21 \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_C_COMPILER=$(which clang) \
+            -DCMAKE_CXX_COMPILER=$(which clang++) \
+            -DDEFAULT_SYSROOT="$(xcrun --show-sdk-path)" \
+            -DLLVM_DEFAULT_TARGET_TRIPLE=arm64-apple-darwin \
+            -DLLVM_TARGETS_TO_BUILD="AArch64;X86;ARM;WebAssembly" \
+            -DLLVM_ENABLE_PROJECTS="clang;lld" \
+            -DLLVM_ENABLE_ASSERTIONS=ON \
+            -DLLVM_ENABLE_RTTI=ON \
+            -DLLVM_ENABLE_EH=ON \
+            -DLLVM_BUILD_LLVM_DYLIB=ON \
+            -DLLVM_LINK_LLVM_DYLIB=ON \
+            -DLLVM_INSTALL_UTILS=ON \
+            -DLLVM_ENABLE_ZLIB=OFF \
+            -DLLVM_ENABLE_LIBXML2=OFF \
+            -DLLVM_ENABLE_TERMINFO=OFF
+
+          ninja
+          ninja install
+
+      - name: Package
+        run: |
+          cd ~
+          tar czf llvm-21-macos-arm64.tar.gz llvm-21/
+          ls -lh llvm-21-macos-arm64.tar.gz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: llvm-21-macos-arm64
+          path: ~/llvm-21-macos-arm64.tar.gz
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/llvm-')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ~/llvm-21-macos-arm64.tar.gz

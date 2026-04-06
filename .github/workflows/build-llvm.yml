@@ -1,4 +1,4 @@
-name: Build LLVM 21.1.0 (xcode-select compatible)
+name: Build LLVM 21.1.0
 
 on:
   workflow_dispatch:

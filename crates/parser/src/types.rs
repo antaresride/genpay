@@ -1,4 +1,4 @@
-pub enum Type {
+pub enum Types {
     String,
     Char,
     Int,

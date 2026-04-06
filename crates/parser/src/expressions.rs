@@ -1,3 +1,1 @@
-pub enum Expressions {
-    Operation,
-}
+pub enum Expressions {}

@@ -1,6 +1,7 @@
 use lexer::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // the source is fully String on the Heap
     let source = file_reader("a.pay")?;
     println!("{}", source);
 

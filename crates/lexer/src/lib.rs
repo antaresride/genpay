@@ -1,17 +1,23 @@
 use std::str::{CharIndices, FromStr};
-use syntax::{Keyword, Literal, Symbol, Token};
+use syntax::{Keyword, Literal, Symbol, Token, report_error};
 
 pub fn file_reader(path: &str) -> std::io::Result<String> {
     std::fs::read_to_string(path)
 }
 
-pub fn tokenize<'a>(source: &'a str, iter: &mut CharIndices<'a>) -> Option<Token<'a>> {
+pub fn next_token<'a>(source: &'a str, iter: &mut CharIndices<'a>) -> Option<Token<'a>> {
     let mut peek = iter.clone().next();
 
     loop {
         // Skip whitespace
         while let Some((_, ch)) = peek {
             if ch.is_whitespace() {
+                report_error(
+                    "main.gp",
+                    source,
+                    "unexpected end of file",
+                    &Token::Keyword(Keyword::Let, "let", 0, 3),
+                );
                 peek = iter.next();
             } else {
                 break;

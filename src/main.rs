@@ -6,7 +6,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut iter = source.char_indices();
 
-    while let Some(tok) = tokenize(&source, &mut iter) {
+    while let Some(tok) = next_token(&source, &mut iter) {
         println!("{:?}", tok);
     }
 

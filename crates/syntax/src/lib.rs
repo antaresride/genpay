@@ -2,6 +2,7 @@ mod error;
 mod tokens;
 
 // Re-export the main types
+pub use error::report_error;
 pub use tokens::Keyword;
 pub use tokens::Literal;
 pub use tokens::Symbol;

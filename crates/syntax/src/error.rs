@@ -1,7 +1,6 @@
 use crate::Token; // Use the re-exports from your crate root
 use ariadne::{Color, Label, Report, ReportKind, Source};
 
-#[allow(dead_code)]
 pub fn report_error(filename: &str, source: &str, msg: &str, token: &Token) {
     let (start, end) = token.span();
 

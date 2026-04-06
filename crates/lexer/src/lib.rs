@@ -1,121 +1,119 @@
-use std::str::{CharIndices, FromStr};
-use syntax::{Keyword, Literal, Symbol, Token, report_error};
+use std::str::FromStr;
+use syntax::*;
 
-pub fn file_reader(path: &str) -> std::io::Result<String> {
-    std::fs::read_to_string(path)
+pub struct Lexer<'a> {
+    source: &'a str,
+    chars: std::iter::Peekable<std::str::CharIndices<'a>>,
 }
 
-pub fn next_token<'a>(source: &'a str, iter: &mut CharIndices<'a>) -> Option<Token<'a>> {
-    let mut peek = iter.clone().next();
-
-    loop {
-        // Skip whitespace
-        while let Some((_, ch)) = peek {
-            if ch.is_whitespace() {
-                report_error(
-                    "main.gp",
-                    source,
-                    "unexpected end of file",
-                    &Token::Keyword(Keyword::Let, "let", 0, 3),
-                );
-                peek = iter.next();
-            } else {
-                break;
-            }
+impl<'a> Lexer<'a> {
+    pub fn new(source: &'a str) -> Self {
+        Self {
+            source,
+            chars: source.char_indices().peekable(),
         }
+    }
 
-        let (start, ch) = peek?;
-        peek = iter.next();
-
-        // Check single-char symbols first
-        if let Some(sym) = Symbol::from_char(ch) {
-            let end = peek.map(|(p, _)| p).unwrap_or(source.len());
-            return Some(Token::Symbol(sym, start, end));
-        }
-
-        match ch {
-            // String literal: "content"
-            '"' => {
-                let slice_start = start;
-
-                while let Some((idx, c)) = peek {
-                    peek = iter.next();
-                    if c == '"' {
-                        let end = peek.map(|(p, _)| p).unwrap_or(source.len());
-                        let inner_start = (slice_start + 1).min(idx);
-                        let slice = &source[inner_start..idx];
-                        return Some(Token::Literal(Literal::Str(slice), start, end));
+    pub fn next_token(&mut self) -> Option<Token<'a>> {
+        while let Some(&(start, ch)) = self.chars.peek() {
+            match ch {
+                c if c.is_whitespace() => {
+                    self.chars.next();
+                    continue;
+                }
+                c if Symbol::from_char(c).is_some() => {
+                    let sym = Symbol::from_char(c).unwrap();
+                    self.chars.next();
+                    return Some(Token::Symbol(sym, start, self.peek_pos()));
+                }
+                '"' => {
+                    self.chars.next();
+                    let content_start = start + 1;
+                    while let Some(&(idx, c)) = self.chars.peek() {
+                        if c == '"' {
+                            let slice = &self.source[content_start..idx];
+                            self.chars.next();
+                            return Some(Token::Literal(
+                                Literal::Str(slice),
+                                start,
+                                self.peek_pos(),
+                            ));
+                        }
+                        self.chars.next();
                     }
+                    return None;
                 }
-                return None;
-            }
-
-            // Identifier or Keyword
-            ch if ch.is_alphabetic() || ch == '_' => {
-                let slice_start = start;
-
-                while let Some((_, c)) = peek {
-                    if c.is_alphabetic() || c == '_' || c.is_numeric() {
-                        peek = iter.next();
-                    } else {
-                        break;
-                    }
-                }
-
-                let end = peek.map(|(p, _)| p).unwrap_or(source.len());
-                let slice = &source[slice_start..end];
-
-                match slice {
-                    "true" => return Some(Token::Literal(Literal::Bool(true), start, end)),
-                    "false" => return Some(Token::Literal(Literal::Bool(false), start, end)),
-                    _ => {}
-                }
-
-                if let Ok(kw) = Keyword::from_str(slice) {
-                    return Some(Token::Keyword(kw, slice, start, end));
-                }
-
-                return Some(Token::Identifier(slice, start, end));
-            }
-
-            // Number: integer or float
-            ch if ch.is_numeric() => {
-                let slice_start = start;
-                let mut is_float = false;
-
-                while let Some((_, c)) = peek {
-                    if c.is_numeric() {
-                        peek = iter.next();
-                    } else if c == '.' && !is_float {
-                        let next_is_digit = iter
-                            .clone()
-                            .next()
-                            .is_some_and(|(_, next_c)| next_c.is_numeric());
-
-                        if !next_is_digit {
+                c if c.is_alphabetic() || c == '_' => {
+                    while let Some(&(_, next_c)) = self.chars.peek() {
+                        if next_c.is_alphanumeric() || next_c == '_' {
+                            self.chars.next();
+                        } else {
                             break;
                         }
-
-                        is_float = true;
-                        peek = iter.next();
-                    } else {
-                        break;
                     }
+                    let end = self.peek_pos();
+                    let slice = &self.source[start..end];
+                    return Some(match slice {
+                        "true" => Token::Literal(Literal::Bool(true), start, end),
+                        "false" => Token::Literal(Literal::Bool(false), start, end),
+                        _ => {
+                            if let Ok(kw) = Keyword::from_str(slice) {
+                                Token::Keyword(kw, slice, start, end)
+                            } else {
+                                Token::Identifier(slice, start, end)
+                            }
+                        }
+                    });
                 }
-
-                let end = peek.map(|(p, _)| p).unwrap_or(source.len());
-                let slice = &source[slice_start..end];
-
-                let literal = if is_float {
-                    Literal::Float(slice.parse().unwrap_or(0.0))
-                } else {
-                    Literal::Int(slice.parse().unwrap_or(0))
-                };
-
-                return Some(Token::Literal(literal, start, end));
+                c if c.is_numeric() => {
+                    let mut is_float = false;
+                    while let Some(&(idx, next_c)) = self.chars.peek() {
+                        if next_c.is_numeric() {
+                            self.chars.next();
+                        } else if next_c == '.' && !is_float {
+                            if let Some(b) = self.source.as_bytes().get(idx + 1)
+                                && b.is_ascii_digit()
+                            {
+                                is_float = true;
+                                self.chars.next();
+                            } else {
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                    let end = self.peek_pos();
+                    let slice = &self.source[start..end];
+                    let lit = if is_float {
+                        Literal::Float(slice.parse().unwrap_or(0.0))
+                    } else {
+                        Literal::Int(slice.parse().unwrap_or(0))
+                    };
+                    return Some(Token::Literal(lit, start, end));
+                }
+                _ => {
+                    self.chars.next();
+                    continue;
+                }
             }
-
-            _ => continue,
         }
+        None
+    }
+
+    #[inline]
+    fn peek_pos(&mut self) -> usize {
+        self.chars
+            .peek()
+            .map(|(i, _)| *i)
+            .unwrap_or(self.source.len())
+    }
+}
+
+// This MUST be present for 'for token in lexer' to work in main.rs
+impl<'a> Iterator for Lexer<'a> {
+    type Item = Token<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next_token()
     }
 }

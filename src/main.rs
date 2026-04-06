@@ -1,12 +1,14 @@
-use lexer::Lexer;
+use lexer::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 1. Load string to heap
-    let content = Lexer::file_reader("a.pay")?;
-    // 2. Initialize Lexer pointing to that heap memory
-    let lexer = Lexer::new(&content);
-    println!("{:?}", lexer);
-    //parser::mock_parse_declaration();
+    let source = file_reader("a.pay")?;
+    println!("{}", source);
+
+    let mut iter = source.char_indices();
+
+    while let Some(tok) = tokenize(&source, &mut iter) {
+        println!("{:?}", tok);
+    }
 
     Ok(())
 }

@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 #[derive(Debug, PartialEq)]
 pub enum Token<'a> {
-    Keyword(Keyword, &'a str, usize, usize),
+    Keyword(Keyword, usize, usize),
     Identifier(&'a str, usize, usize),
     Symbol(Symbol, usize, usize),
     Literal(Literal<'a>, usize, usize),
@@ -13,7 +13,7 @@ impl<'a> Token<'a> {
     #[inline]
     pub fn span(&self) -> (usize, usize) {
         match self {
-            Token::Keyword(_, _, s, e)
+            Token::Keyword(_, s, e)
             | Token::Identifier(_, s, e)
             | Token::Symbol(_, s, e)
             | Token::Literal(_, s, e) => (*s, *e),

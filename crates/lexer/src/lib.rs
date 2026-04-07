@@ -58,7 +58,7 @@ impl<'a> Lexer<'a> {
                         "false" => Token::Literal(Literal::Bool(false), start, end),
                         _ => {
                             if let Ok(kw) = Keyword::from_str(slice) {
-                                Token::Keyword(kw, slice, start, end)
+                                Token::Keyword(kw, start, end)
                             } else {
                                 Token::Identifier(slice, start, end)
                             }

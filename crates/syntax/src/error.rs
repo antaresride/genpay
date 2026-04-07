@@ -27,7 +27,7 @@ mod tests {
     fn ariade_report() {
         let source = "let x = 42";
         // Arguments match: (Keyword, &str, start, end)
-        let token = Token::Keyword(Keyword::Let, "let", 0, 3);
+        let token = Token::Keyword(Keyword::Let, 0, 3);
         report_error("main.gp", source, "unexpected keyword here", &token);
     }
 

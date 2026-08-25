@@ -4,15 +4,15 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-# This links your local crates to your main client
+# Local crate dependencies
 lexer = { path = "crates/lexer" }
 parser = { path = "crates/parser" }
 semantic = { path = "crates/semantic" }
 codegen = { path = "crates/codegen" }
 linker = { path = "crates/linker" }
 syntax = { path = "crates/syntax" }
-# The root binary crate can then use it optionally
-# Make them optional so they don't compile unless asked
+
+# Workspace dependencies made optional for root crate selection
 inkwell = { workspace = true, optional = true }
 llvm-sys = { workspace = true, optional = true }
 cranelift-codegen = { workspace = true, optional = true }
@@ -23,17 +23,46 @@ mimalloc = { workspace = true, optional = true }
 bumpalo = { workspace = true, optional = true }
 
 [features]
-# Create high-level features for each backend
-# could be configured  "codegen/use_llvm as it was configured in use_cranelift"
-use_llvm = ["dep:inkwell", "dep:llvm-sys"]
-# When 'use_cranelift' is active here, it turns it on in codegen and linker
+# Forwards feature activation to the underlying codegen/linker sub-crates
+use_llvm = [
+    "dep:inkwell",
+    "dep:llvm-sys",
+    "codegen/use_llvm"
+]
+
 use_cranelift = [
     "dep:cranelift-codegen",
-    "codegen/use_cranelift",
     "dep:cranelift-module",
     "dep:cranelift-object",
-    "dep:target-lexicon"
+    "dep:target-lexicon",
+    "codegen/use_cranelift"
 ]
+
+use_mimalloc = ["dep:mimalloc"]
+use_arena = ["dep:bumpalo", "parser/use_arena"]
+
+default = ["use_cranelift", "use_arena", "use_llvm", "use_mimalloc"]
+
+[workspace]
+members = [
+    "crates/lexer",
+    "crates/parser",
+    "crates/semantic",
+    "crates/codegen",
+    "crates/linker",
+    "crates/syntax"
+]
+resolver = "3"
+
+[workspace.dependencies]
+cranelift-codegen = "0.129.1"
+target-lexicon = "0.13.5"
+cranelift-module = "0.129.1"
+cranelift-object = "0.129.1"
+inkwell = { version = "0.9.0", features = ["llvm22-1"] }
+llvm-sys = "221.0.0"
+mimalloc = { version = "0.1.48", features = ["secure"] }
+bumpalo = { version = "3.20.2" }
 # Optional: allow enabling mimalloc via a flag
 # default = ["use_mimalloc"]
 use_mimalloc = ["dep:mimalloc"]

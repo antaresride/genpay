@@ -1,21 +1,22 @@
-xcode-select --install
+xcode-select --install || true
 
 # Create working directory
 mkdir -p ~/llvm-build && cd ~/llvm-build
 
-# Clone LLVM 21.1.0 (or latest 21.x release)
-git clone --depth 1 --branch llvmorg-21.1.0 https://github.com/llvm/llvm-project.git
+# Clone LLVM 22.1.8 exact release tag
+git clone --depth 1 --branch llvmorg-22.1.8 https://github.com/llvm/llvm-project.git
+
 cd llvm-project
 
 # Create build directory
-mkdir build && cd build
+mkdir -p build && cd build
 
-# Configure with CMake - optimized for Inkwell 0.8.0 / llvm-sys 211
+# Configure with CMake
 cmake -G Ninja \
   -S ../llvm \
   -B . \
   -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_INSTALL_PREFIX=$HOME/llvm-21 \
+  -DCMAKE_INSTALL_PREFIX=$HOME/llvm-22 \
   -DCMAKE_OSX_ARCHITECTURES=arm64 \
   -DCMAKE_C_COMPILER=$(which clang) \
   -DCMAKE_CXX_COMPILER=$(which clang++) \
@@ -33,31 +34,32 @@ cmake -G Ninja \
   -DLLVM_ENABLE_LIBXML2=OFF \
   -DLLVM_ENABLE_TERMINFO=OFF
 
-# Build 
+# Build & Install
 ninja
-
-# Install to the prefix directory
 ninja install
 
-#~/.zshrc or ~/.bash_profile
+# Append LLVM 22 configuration to ~/.zshrc
+cat << 'EOF' >> ~/.zshrc
 
-# LLVM 21 for GenPay / Inkwell 0.8.0 / llvm-sys 211
-export LLVM_SYS_211_PREFIX=$HOME/llvm-21
-export PATH=$HOME/llvm-21/bin:$PATH
-export DYLD_LIBRARY_PATH=$HOME/llvm-21/lib:$DYLD_LIBRARY_PATH
-export LIBRARY_PATH=$HOME/llvm-21/lib:$LIBRARY_PATH
+# LLVM 22 for Inkwell / llvm-sys 221
+export LLVM_SYS_221_PREFIX=$HOME/llvm-22
+export PATH=$HOME/llvm-22/bin:$PATH
+export LIBRARY_PATH=$HOME/llvm-22/lib:$LIBRARY_PATH
+EOF
 
+# Apply updates to current session
 source ~/.zshrc
 
-# Check version
-llvm-config --version  # Should show 21.1.0 or similar
+# Verify binaries and version output
+llvm-config --version    # Should display 22.1.0
 
-# Verify llvm-config is found and working
-which llvm-config
+# Ensure binary target path resolves correctly
+which llvm-config        # Should point to $HOME/llvm-22/bin/llvm-config
 
-# Check that RTTI is enabled (required for Inkwell)
-llvm-config --has-rtti  # Should print "YES"
+# Verify RTTI remains enabled (Required by Inkwell)
+llvm-config --has-rtti   # Should return "YES"
 
-# Verify libraries are available
+# Verify link targets
 llvm-config --libs
 llvm-config --ldflags
+
